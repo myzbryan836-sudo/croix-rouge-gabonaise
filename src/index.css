@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Archivo', sans-serif;
+}
+
+::selection {
+  background-color: #D32F2F;
+  color: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.btn-primary {
+  @apply bg-cr-red text-white uppercase tracking-widest text-sm font-semibold px-6 py-3 rounded-full hover:bg-red-700 transition-colors duration-200 inline-flex items-center justify-center gap-2;
+}
+
+.btn-outline {
+  @apply border-2 border-cr-dark text-cr-dark uppercase tracking-widest text-sm font-semibold px-6 py-3 rounded-full hover:bg-cr-dark hover:text-white transition-colors duration-200 inline-flex items-center justify-center gap-2;
+}
+
+.btn-outline-light {
+  @apply border-2 border-white text-white uppercase tracking-widest text-sm font-semibold px-6 py-3 rounded-full hover:bg-white hover:text-cr-dark transition-colors duration-200 inline-flex items-center justify-center gap-2;
+}
+
+.eyebrow {
+  @apply uppercase tracking-[0.2em] text-xs font-bold text-cr-red;
+}
+
+.section-title {
+  @apply font-display uppercase font-extrabold text-3xl md:text-5xl tracking-tight;
+}
