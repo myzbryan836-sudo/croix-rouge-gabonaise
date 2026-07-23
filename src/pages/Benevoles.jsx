@@ -63,11 +63,12 @@ export default function Benevoles() {
             </p>
           </div>
           
-            href="/carnet-terrain.apk"
+            <a
+              href="/carnet-terrain.apk"
             download
             className="btn-primary whitespace-nowrap"
           >
-            <Download size={16} /> Télécharger l'app (Android)
+            <Download size={16} /> Télécharger l’app (Android)
           </a>
         </div>
 
@@ -122,3 +123,4 @@ export default function Benevoles() {
     </div>
   )
 }
+
