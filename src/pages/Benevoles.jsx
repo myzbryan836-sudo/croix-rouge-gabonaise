@@ -1,6 +1,6 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, HandHeart } from 'lucide-react'
+import { CheckCircle2, HandHeart, Download } from 'lucide-react'
 import { supabase } from '../supabase/config'
 
 const DISPONIBILITES = [
@@ -51,9 +51,25 @@ export default function Benevoles() {
       <div className="max-w-2xl mx-auto px-5 md:px-8">
         <span className="eyebrow mb-2 block">Rejoignez-nous</span>
         <h1 className="section-title mb-4">Devenir bénévole</h1>
-        <p className="text-cr-dark/60 mb-10">
+        <p className="text-cr-dark/60 mb-6">
           Rejoignez un réseau engagé de bénévoles présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
         </p>
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <p className="font-display uppercase font-extrabold text-sm mb-1">App « Carnet de terrain »</p>
+            <p className="text-cr-dark/60 text-sm">
+              Application dédiée aux volontaires pour remonter les signalements depuis le terrain, même sans connexion internet.
+            </p>
+          </div>
+          
+            href="/carnet-terrain.apk"
+            download
+            className="btn-primary whitespace-nowrap"
+          >
+            <Download size={16} /> Télécharger l'app (Android)
+          </a>
+        </div>
 
         <AnimatePresence mode="wait">
           {sent ? (
