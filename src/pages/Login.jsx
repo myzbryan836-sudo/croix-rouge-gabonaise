@@ -6,7 +6,7 @@ import Logo from '../components/shared/Logo'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
@@ -23,16 +23,6 @@ export default function Login() {
       setError("Email ou mot de passe incorrect.")
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleGoogle = async () => {
-    setError('')
-    try {
-      await loginWithGoogle()
-      navigate('/')
-    } catch (err) {
-      setError('Connexion Google impossible.')
     }
   }
 
@@ -58,15 +48,6 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-5">
-          <div className="h-px bg-cr-dark/10 flex-1" /><span className="text-xs text-cr-dark/40">OU</span><div className="h-px bg-cr-dark/10 flex-1" />
-        </div>
-
-        <button onClick={handleGoogle} className="btn-outline w-full">Continuer avec Google</button>
-
-        <p className="text-center text-sm text-cr-dark/60 mt-6">
-          Pas encore de compte ? <Link to="/inscription" className="text-cr-red font-semibold">S'inscrire</Link>
-        </p>
       </motion.div>
     </div>
   )
