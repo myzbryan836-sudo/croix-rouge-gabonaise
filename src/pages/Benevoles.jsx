@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, HandHeart, Download } from 'lucide-react'
 import { supabase } from '../supabase/config'
@@ -63,13 +63,23 @@ export default function Benevoles() {
             </p>
           </div>
           
-            <a
+            <div className="flex flex-col md:flex-row gap-3">
+            
               href="/carnet-terrain.apk"
-            download
-            className="btn-primary whitespace-nowrap"
-          >
-            <Download size={16} /> Télécharger l’app (Android)
-          </a>
+              download
+              className="btn-primary whitespace-nowrap"
+            >
+              <Download size={16} /> Télécharger l'app (Android)
+            </a>
+            
+              href="/carnet-terrain/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary whitespace-nowrap"
+            >
+              Ouvrir l'app web (PWA)
+            </a>
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
