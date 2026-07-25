@@ -1641,6 +1641,7 @@ AdminAuth.init().then(updateAdminUI);
       listEl.innerHTML = '<div class="empty-state">Impossible de vérifier le statut pour le moment.</div>';
     }
   }
+  window.loadMyReports = loadMyReports;
 
   async function loadDashboard() {
     document.getElementById('ticketsList').innerHTML = '<div class="loading">Chargement des signalements...</div>';
