@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Carnet de terrain — Croix-Rouge Gabonaise</title>
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CR Terrain">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-64.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --paper: #FBF9F4;
+    --carbon: #E4E0D4;
+    --ink: #262220;
+    --ink-soft: #5B564E;
+    --rc-red: #C8102E;
+    --rc-red-dark: #8E0B20;
+    --amber: #C97B2E;
+    --teal: #2F5A5A;
+    --line: #C9C2B2;
+    --ok-green: #3B6B48;
+    --radius: 3px;
+    --shadow: 0 1px 0 rgba(38,34,32,0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--carbon);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+
+  /* Header: stamped letterhead */
+  .letterhead {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-top: 6px solid var(--rc-red);
+    padding: 18px 20px 16px;
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .letterhead .logo {
+    position: absolute;
+    top: -18px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    background: var(--paper);
+    border: 2px solid var(--paper);
+    box-shadow: var(--shadow);
+  }
+  .gear-btn {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .admin-btn {
+    right: 54px;
+  }
+  .admin-btn.on {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--teal);
+  }
+  .sync-badge {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--carbon);
+    padding: 3px 9px;
+    border-radius: 10px;
+  }
+  .sync-badge.on { color: #fff; background: var(--teal); }
+
+  .ticket-actions { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .mark-treated-btn {
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mark-treated-btn:hover { opacity: 0.9; }
+  .status-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 3px 9px;
+    border-radius: 10px;
+  }
+  .status-badge.traite { background: var(--teal); color: #fff; }
+  .status-badge.nouveau { background: var(--carbon); color: var(--ink-soft); }
+  .ticket.traite { opacity: 0.75; }
+
+  .my-reports { margin-top: 22px; }
+  .my-reports h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin-bottom: 8px; }
+  .my-report-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    background: rgba(251,249,244,0.9);
+  }
+
+  /* Settings modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(38,34,32,0.55);
+    z-index: 50;
+    padding: 16px;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--paper);
+    max-width: 520px;
+    width: 100%;
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+  }
+  .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .modal-head h2 { font-size: 16px; margin: 0 0 10px; }
+  .modal-close {
+    background: none; border: none; font-size: 16px; cursor: pointer; color: var(--ink-soft);
+    line-height: 1;
+  }
+  .modal-text { font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin: 0 0 12px; }
+  .modal-steps { font-size: 13px; line-height: 1.6; padding-left: 18px; margin: 0 0 12px; }
+  .code {
+    font-family: 'Space Mono', monospace;
+    background: var(--carbon);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .config-input {
+    width: 100%;
+    min-height: 90px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+  }
+  .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .modal-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+  }
+  .modal-btn.primary { background: var(--rc-red); color: #fff; border-color: var(--rc-red); }
+  .modal-btn.secondary { background: none; color: var(--ink-soft); }
+  .modal-status { font-size: 12px; margin: 10px 0 0; }
+  .modal-status.ok { color: var(--ok-green); }
+  .modal-status.err { color: var(--rc-red); }
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 4px;
+  }
+  h1 {
+    font-size: 21px;
+    margin: 0;
+    font-weight: 700;
+    line-height: 1.25;
+    max-width: 88%;
+  }
+  .sub {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+  }
+
+  /* Tabs styled like ticket stubs */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tab {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-bottom: none;
+    padding: 10px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .tab.active { color: var(--ink); background: var(--paper); }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 3px;
+    background: var(--rc-red);
+  }
+  .tab-badge {
+    display: inline-block;
+    margin-left: 6px;
+    background: var(--carbon);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+
+  .panel {
+    background:
+      linear-gradient(rgba(251,249,244,0.95), rgba(251,249,244,0.95)),
+      url('logo-header.png') center 160px / 200px no-repeat;
+    border: 1px solid var(--line);
+    padding: 20px;
+  }
+
+  /* Form */
+  .field { margin-bottom: 16px; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: var(--radius);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--teal);
+    outline-offset: 1px;
+  }
+  .combo-autre { margin-top: 6px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip.selected {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+  }
+
+  .urgency-group { display: flex; gap: 8px; }
+  .urgency-opt {
+    flex: 1;
+    text-align: center;
+    padding: 10px 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #fff;
+  }
+  .urgency-opt[data-level="faible"].selected { background: var(--ok-green); color: #fff; border-color: var(--ok-green); }
+  .urgency-opt[data-level="moyen"].selected { background: var(--amber); color: #fff; border-color: var(--amber); }
+  .urgency-opt[data-level="eleve"].selected { background: var(--rc-red); color: #fff; border-color: var(--rc-red); }
+
+  .geo-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .geo-btn {
+    white-space: nowrap;
+    padding: 10px 14px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .geo-status { font-size: 12px; color: var(--ink-soft); }
+  .geo-status.ok { color: var(--ok-green); }
+  .geo-status.err { color: var(--rc-red); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--rc-red);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .submit-btn:active { background: var(--rc-red-dark); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .hint { font-size: 11px; color: var(--ink-soft); margin-top: 4px; }
+
+  .req { color: var(--rc-red); }
+
+  .age-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+    gap: 6px;
+  }
+  .age-grid .age-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .age-grid .age-cell span {
+    font-size: 10px;
+    color: var(--ink-soft);
+    font-family: 'Space Mono', monospace;
+  }
+  .age-grid .age-cell input {
+    width: 100%;
+    padding: 6px 4px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
+
+  .file-input {
+    width: 100%;
+    font-size: 13px;
+    padding: 8px 0;
+  }
+  .media-preview {
+    margin-top: 8px;
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    display: block;
+  }
+  .voice-row { display: flex; gap: 8px; align-items: center; }
+  .geo-btn.recording { background: var(--rc-red); }
+
+  .retour-history { margin-top: 22px; border-top: 1px dashed var(--line); padding-top: 14px; }
+  .retour-history h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  .retour-item {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--teal);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .retour-item .rt-meta { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Confirmation stamp */
+  .stamp-overlay {
+    display: none;
+    text-align: center;
+    padding: 30px 10px;
+  }
+  .stamp-overlay.show { display: block; }
+  .stamp {
+    display: inline-block;
+    border: 3px solid var(--rc-red);
+    color: var(--rc-red);
+    padding: 14px 22px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transform: rotate(-4deg);
+    border-radius: 4px;
+  }
+  .stamp .ref { display: block; font-size: 20px; margin-top: 4px; }
+  .stamp-note { margin-top: 16px; font-size: 13px; color: var(--ink-soft); }
+  .new-report-btn {
+    margin-top: 16px;
+    background: none;
+    border: 1px solid var(--line);
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Dashboard */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .stat .n { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; }
+  .stat .l { font-size: 10px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-chip {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .filter-chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  .ticket {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--ink-soft);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .ticket.faible { border-left-color: var(--ok-green); }
+  .ticket.moyen { border-left-color: var(--amber); }
+  .ticket.eleve { border-left-color: var(--rc-red); }
+  .ticket-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .ticket-ref {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .ticket-level {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: #fff;
+  }
+  .ticket.faible .ticket-level { background: var(--ok-green); }
+  .ticket.moyen .ticket-level { background: var(--amber); }
+  .ticket.eleve .ticket-level { background: var(--rc-red); }
+  .ticket-title { font-weight: 700; margin: 6px 0 4px; font-size: 15px; }
+  .ticket-meta { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+  .ticket-desc { font-size: 13px; line-height: 1.45; margin-bottom: 8px; }
+  .ticket-needs { display: flex; flex-wrap: wrap; gap: 5px; }
+  .need-tag {
+    font-size: 11px;
+    background: var(--carbon);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--ink);
+  }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+  .loading { text-align: center; padding: 30px; color: var(--ink-soft); font-size: 13px; }
+  .share-note {
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: var(--carbon);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin-bottom: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="letterhead">
+    <img class="logo" src="logo-header.png" alt="Croix-Rouge Gabonaise" onerror="this.style.display='none'">
+    <button class="gear-btn" id="gearBtn" title="Configuration" style="display:none;">⚙</button>
+    <button class="gear-btn admin-btn" id="adminBtn" title="Connexion admin">🔒</button>
+    <p class="eyebrow">Croix-Rouge Gabonaise · Brigades de volontaires</p>
+    <h1>Carnet de terrain — remontée d'informations</h1>
+    <p class="sub">Signalement d'événements et évaluation rapide des besoins</p>
+    <div class="sync-badge" id="syncBadge">● Mode local (cet appareil uniquement)</div>
+  </div>
+
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Configuration — synchronisation entre appareils</h2>
+        <button class="modal-close" id="closeSettings">✕</button>
+      </div>
+      <p class="modal-text">Par défaut, l'application fonctionne <strong>hors ligne</strong> et enregistre les signalements uniquement sur cet appareil. Pour que toutes les brigades partagent le même tableau de suivi, activez une base de données <strong>Supabase</strong> — service entièrement gratuit (offre Free, sans carte bancaire) pour ce volume d'utilisation.</p>
+      <ol class="modal-steps">
+        <li>Aller sur <span class="code">supabase.com</span> → créer un compte gratuit → <strong>New project</strong>.</li>
+        <li>Une fois le projet créé, ouvrir l'onglet <strong>SQL Editor</strong> et exécuter :<br>
+          <span class="code">create table signalements (id text primary key, data jsonb, created_at timestamptz default now());</span><br>
+          puis :<br>
+          <span class="code">alter table signalements enable row level security;</span><br>
+          <span class="code">create policy "public rw" on signalements for all using (true) with check (true);</span>
+        </li>
+        <li>Aller dans <strong>Project Settings</strong> → <strong>API</strong>. Copier l'<strong>URL du projet</strong> et la clé <strong>anon public</strong>.</li>
+        <li>Coller les deux valeurs ci-dessous, au format indiqué.</li>
+      </ol>
+      <textarea id="supabaseConfigInput" class="config-input" placeholder='{"url":"https://xxxx.supabase.co", "anonKey":"eyJhbGciOi..."}'></textarea>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="clearConfig">Revenir au mode local</button>
+        <button class="modal-btn primary" id="saveConfig">Enregistrer et synchroniser</button>
+      </div>
+      <p class="modal-status" id="configStatus"></p>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="adminModalTitle">Connexion administrateur</h2>
+        <button class="modal-close" id="closeAdmin">✕</button>
+      </div>
+      <p class="modal-text" id="adminModalText">Réservé aux responsables. Les agents de terrain n'ont pas besoin de se connecter — ils remplissent simplement le formulaire.</p>
+
+      <div id="adminLoginFields">
+        <div class="field">
+          <label for="adminEmail">Email</label>
+          <input type="email" id="adminEmail" placeholder="admin@croix-rouge-ga.org">
+        </div>
+        <div class="field">
+          <label for="adminPassword">Mot de passe</label>
+          <input type="password" id="adminPassword" placeholder="••••••••">
+        </div>
+        <div class="field" id="inviteCodeField" style="display:none;">
+          <label for="inviteCode">Code d'invitation reçu de l'administrateur</label>
+          <input type="text" id="inviteCode" placeholder="Ex: RC-4821">
+        </div>
+        <p class="modal-text" style="margin-top:-6px;">
+          <a href="#" id="toggleSignupMode">J'ai un code d'invitation et je n'ai pas encore de compte</a>
+        </p>
+      </div>
+
+      <div id="adminManageFields" style="display:none;">
+        <p class="modal-text">Connecté en tant qu'administrateur.</p>
+        <div class="field">
+          <button type="button" class="modal-btn primary" id="genInviteBtn" style="width:100%;">Générer un code d'invitation admin</button>
+        </div>
+        <p class="modal-status" id="inviteStatus"></p>
+        <p class="modal-text">Pour retirer un droit admin (y compris le vôtre), supprimez le compte dans votre tableau de bord Supabase : <strong>Authentication → Users</strong>.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="adminLogoutBtn" style="display:none;">Se déconnecter</button>
+        <button class="modal-btn primary" id="adminLoginBtn">Se connecter</button>
+      </div>
+      <p class="modal-status" id="adminStatus"></p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="form">Signaler</div>
+    <div class="tab" data-tab="retour">Retour d'info</div>
+    <div class="tab" data-tab="dashboard" id="dashboardTab" style="display:none;">Suivi <span class="tab-badge" id="countBadge">0</span></div>
+  </div>
+
+  <div class="panel" id="formPanel">
+    <div class="share-note">Par défaut, vos signalements restent sur cet appareil. Pour les partager avec toute la brigade en temps réel, activez la synchronisation gratuite via le bouton ⚙ en haut de la page.</div>
+
+    <form id="reportForm">
+      <div class="field">
+        <label for="volunteer">Nom du volontaire</label>
+        <input type="text" id="volunteer" required placeholder="Nom et prénom">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="brigadeSel">Brigade / Zone</label>
+          <select id="brigadeSel" class="combo-select" required></select>
+          <input type="text" id="brigadeAutre" class="combo-autre" style="display:none" placeholder="Préciser la brigade / zone">
+          <input type="hidden" id="brigade">
+        </div>
+        <div class="field">
+          <label for="eventType">Type d'événement</label>
+          <select id="eventType" required>
+            <option value="">Choisir...</option>
+            <option>Inondation</option>
+            <option>Incendie</option>
+            <option>Accident de circulation</option>
+            <option>Épidémie / maladie</option>
+            <option>Déplacement de population</option>
+            <option>Insécurité alimentaire</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="description">Description de l'événement</label>
+        <textarea id="description" required placeholder="Que se passe-t-il, où, depuis quand ?"></textarea>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="affected">Personnes affectées (estimation)</label>
+          <input type="number" id="affected" min="0" placeholder="Nombre">
+        </div>
+        <div class="field">
+          <label for="locationSel">Localisation</label>
+          <div class="geo-row">
+            <select id="locationSel" class="combo-select"></select>
+          </div>
+          <input type="text" id="locationAutre" class="combo-autre" style="display:none" placeholder="Préciser le quartier / village">
+          <input type="hidden" id="location">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Position GPS</label>
+        <div class="geo-row">
+          <button type="button" class="geo-btn" id="geoBtn">Capter ma position</button>
+          <span class="geo-status" id="geoStatus">Non capturée</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Besoins urgents identifiés</label>
+        <div class="chips" id="needsChips">
+          <div class="chip" data-need="Eau">Eau</div>
+          <div class="chip" data-need="Abri">Abri</div>
+          <div class="chip" data-need="Nourriture">Nourriture</div>
+          <div class="chip" data-need="Santé">Santé</div>
+          <div class="chip" data-need="Hygiène">Hygiène</div>
+          <div class="chip" data-need="Protection">Protection</div>
+          <div class="chip" data-need="Autre">Autre</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Niveau d'urgence</label>
+        <div class="urgency-group" id="urgencyGroup">
+          <div class="urgency-opt" data-level="faible">Faible</div>
+          <div class="urgency-opt" data-level="moyen">Moyen</div>
+          <div class="urgency-opt" data-level="eleve">Élevé</div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Transmettre le signalement</button>
+    </form>
+
+    <div class="stamp-overlay" id="stampOverlay">
+      <div class="stamp">Signalement reçu<span class="ref" id="stampRef">#0000</span></div>
+      <p class="stamp-note">Transmis au tableau de suivi national.</p>
+      <button class="new-report-btn" id="newReportBtn">Nouveau signalement</button>
+    </div>
+
+    <div class="my-reports" id="myReportsSection" style="display:none;">
+      <h3>Mes signalements récents</h3>
+      <div id="myReportsList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="retourPanel" style="display:none;">
+    <div class="share-note">Ce formulaire détaillé sert à évaluer la situation d'une famille (vulnérabilité, composition du ménage, besoins). Il est enregistré avec les mêmes règles de partage que les signalements.</div>
+
+    <form id="retourForm">
+      <div class="row2">
+        <div class="field">
+          <label for="r_sinistre">Type de sinistre <span class="req">*</span></label>
+          <select id="r_sinistre" required>
+            <option value="">Veuillez sélectionner</option>
+            <option>Inondation</option>
+            <option>Incendie</option>
+            <option>Accident de circulation</option>
+            <option>Épidémie / maladie</option>
+            <option>Déplacement de population</option>
+            <option>Insécurité alimentaire</option>
+            <option>Sécheresse</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="r_vulnerable">Famille vulnérable <span class="req">*</span></label>
+          <select id="r_vulnerable" required>
+            <option value="">Veuillez sélectionner</option>
+            <option>Oui</option>
+            <option>Non</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_province">Provinces</label>
+          <select id="r_province">
+            <option value="">Veuillez sélectionner</option>
+            <option>Estuaire</option>
+            <option>Haut-Ogooué</option>
+            <option>Moyen-Ogooué</option>
+            <option>Ngounié</option>
+            <option>Nyanga</option>
+            <option>Ogooué-Ivindo</option>
+            <option>Ogooué-Lolo</option>
+            <option>Ogooué-Maritime</option>
+            <option>Woleu-Ntem</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="r_villeSel">Ville <span class="req">*</span></label>
+          <select id="r_villeSel" class="combo-select" required>
+            <option value="">Veuillez d'abord choisir une province</option>
+          </select>
+          <input type="text" id="r_villeAutre" class="combo-autre" style="display:none" placeholder="Préciser la ville / localité">
+          <input type="hidden" id="r_ville">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_arrondissementSel">Arrondissement</label>
+          <select id="r_arrondissementSel" class="combo-select">
+            <option value="">Sans objet</option>
+          </select>
+          <input type="text" id="r_arrondissementAutre" class="combo-autre" style="display:none" placeholder="Préciser l'arrondissement">
+          <input type="hidden" id="r_arrondissement">
+        </div>
+        <div class="field">
+          <label for="r_quartierSel">Quartier / village</label>
+          <select id="r_quartierSel" class="combo-select">
+            <option value="">Veuillez sélectionner</option>
+          </select>
+          <input type="text" id="r_quartierAutre" class="combo-autre" style="display:none" placeholder="Préciser le quartier / village">
+          <input type="hidden" id="r_quartier">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_chef">Nom et prénom du chef de famille</label>
+          <input type="text" id="r_chef">
+        </div>
+        <div class="field">
+          <label for="r_age">Âge</label>
+          <input type="number" id="r_age" min="0">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_tel">Téléphone</label>
+          <input type="text" id="r_tel" inputmode="tel">
+        </div>
+        <div class="field">
+          <label for="r_nationaliteSel">Nationalité</label>
+          <select id="r_nationaliteSel" class="combo-select"></select>
+          <input type="text" id="r_nationaliteAutre" class="combo-autre" style="display:none" placeholder="Préciser la nationalité">
+          <input type="hidden" id="r_nationalite">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_profession">Situation professionnelle</label>
+          <input type="text" id="r_profession">
+        </div>
+        <div class="field">
+          <label for="r_matrimonial">Situation matrimoniale</label>
+          <select id="r_matrimonial">
+            <option value="">Veuillez sélectionner</option>
+            <option>Célibataire</option>
+            <option>Marié(e)</option>
+            <option>Divorcé(e)</option>
+            <option>Veuf / veuve</option>
+            <option>Union libre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_handicap">Handicap</label>
+          <select id="r_handicap">
+            <option value="">Veuillez sélectionner</option>
+            <option>Aucun</option>
+            <option>Moteur</option>
+            <option>Visuel</option>
+            <option>Auditif</option>
+            <option>Mental</option>
+            <option>Multiple</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="r_taille">Taille du ménage (nombre de personnes) <span class="req">*</span></label>
+          <input type="number" id="r_taille" min="0" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="r_repas">Nombre de repas par jour</label>
+        <input type="number" id="r_repas" min="0" style="max-width:160px;">
+      </div>
+
+      <div class="field">
+        <label>Nombre d'enfants de 0 à 8 ans</label>
+        <div class="age-grid" id="ageGrid1"></div>
+      </div>
+
+      <div class="field">
+        <label>Nombre d'enfants de 9 à 13 ans</label>
+        <div class="age-grid" id="ageGrid2"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_prepri">Enfants au pré-primaire</label>
+          <input type="number" id="r_prepri" min="0">
+        </div>
+        <div class="field">
+          <label for="r_primaire">Enfants au primaire</label>
+          <input type="number" id="r_primaire" min="0">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="r_secondaire">Enfants au secondaire</label>
+          <input type="number" id="r_secondaire" min="0">
+        </div>
+        <div class="field">
+          <label for="r_superieur">Enfants au supérieur</label>
+          <input type="number" id="r_superieur" min="0">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Personnes vulnérables dans le ménage</label>
+        <div class="chips" id="vulnChips">
+          <div class="chip" data-vuln="Enfant de -5ans">Enfant de -5ans</div>
+          <div class="chip" data-vuln="Enfant de -1an">Enfant de -1an</div>
+          <div class="chip" data-vuln="Femme enceinte">Femme enceinte</div>
+          <div class="chip" data-vuln="Personne handicapée">Personne handicapée</div>
+          <div class="chip" data-vuln="Personne du 3ème âge">Personne du 3ème âge</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_sansacte">Enfants sans acte de naissance</label>
+          <input type="number" id="r_sansacte" min="0">
+        </div>
+        <div class="field">
+          <label for="r_femmesproc">Femmes en âge de procréer (14-55)</label>
+          <input type="number" id="r_femmesproc" min="0">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="r_typemaison">Type de maison</label>
+          <select id="r_typemaison">
+            <option value="">Veuillez sélectionner</option>
+            <option>Dur (parpaing / béton)</option>
+            <option>Semi-dur</option>
+            <option>Bois / planches</option>
+            <option>Tôle / matériaux précaires</option>
+            <option>Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="r_statutocc">Statut de l'occupant</label>
+          <select id="r_statutocc">
+            <option value="">Veuillez sélectionner</option>
+            <option>Propriétaire</option>
+            <option>Locataire</option>
+            <option>Hébergé gratuitement</option>
+            <option>Squatteur</option>
+            <option>Autre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="r_feedback">Feedback</label>
+        <textarea id="r_feedback" placeholder="Retour sur la situation observée"></textarea>
+      </div>
+      <div class="field">
+        <label for="r_suggestions">Suggestions</label>
+        <textarea id="r_suggestions" placeholder="Recommandations pour la suite"></textarea>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Prendre une photo</label>
+          <input type="file" id="r_photoInput" accept="image/*" capture="environment" class="file-input">
+          <img id="r_photoPreview" class="media-preview" style="display:none;">
+          <p class="hint" id="r_photoHint"></p>
+        </div>
+        <div class="field">
+          <label>Enregistrement vocal</label>
+          <div class="voice-row">
+            <button type="button" class="geo-btn" id="r_voiceBtn">● Enregistrer</button>
+            <span class="geo-status" id="r_voiceStatus">Aucun enregistrement</span>
+          </div>
+          <audio id="r_audioPreview" controls style="display:none; width:100%; margin-top:8px;"></audio>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="r_submitBtn">Save</button>
+    </form>
+
+    <div class="stamp-overlay" id="r_stampOverlay">
+      <div class="stamp">Retour enregistré<span class="ref" id="r_stampRef">#0000</span></div>
+      <p class="stamp-note">Fiche famille transmise.</p>
+      <button class="new-report-btn" id="r_newReportBtn">Nouvelle fiche</button>
+    </div>
+
+    <div class="retour-history" id="retourHistory"></div>
+  </div>
+
+  <div class="panel" id="dashboardPanel" style="display:none;">
+    <div class="stats" id="statsRow"></div>
+    <div class="filter-row" id="filterRow">
+      <div class="filter-chip active" data-filter="tous">Tous</div>
+      <div class="filter-chip" data-filter="eleve">Élevé</div>
+      <div class="filter-chip" data-filter="moyen">Moyen</div>
+      <div class="filter-chip" data-filter="faible">Faible</div>
+      <div class="filter-chip" id="exportBtn">⬇ Exporter (CSV)</div>
+      <div class="filter-chip" id="refreshBtn">↻ Actualiser</div>
+    </div>
+    <div id="ticketsList"><div class="loading">Chargement des signalements...</div></div>
+  </div>
+
+</div>
+
+<script>
+// =====================================================================
+// Données Gabon (provinces / villes / arrondissements / quartiers),
+// nationalités et brigades — pour les listes déroulantes du carnet.
+// Listes indicatives (localités et quartiers les plus courants) :
+// l'option "Autre (préciser)" permet toujours de saisir une valeur
+// absente de la liste, notamment pour les villages non répertoriés.
+// =====================================================================
+const AUTRE_VALUE = '__autre__';
+
+const GABON_VILLES = {
+  "Estuaire": ["Libreville", "Owendo", "Akanda", "Ntoum", "Kango", "Cocobeach", "Ndzomoé"],
+  "Haut-Ogooué": ["Franceville", "Moanda", "Mounana", "Okondja", "Akiéni", "Lékoni", "Bongoville"],
+  "Moyen-Ogooué": ["Lambaréné", "Ndjolé"],
+  "Ngounié": ["Mouila", "Ndendé", "Mimongo", "Mbigou", "Fougamou", "Lébamba"],
+  "Nyanga": ["Tchibanga", "Mayumba", "Moabi", "Mabanda", "Ndindi"],
+  "Ogooué-Ivindo": ["Makokou", "Booué", "Mékambo", "Ovan"],
+  "Ogooué-Lolo": ["Koulamoutou", "Lastourville", "Pana", "Iboundji"],
+  "Ogooué-Maritime": ["Port-Gentil", "Omboué", "Gamba", "Sette Cama"],
+  "Woleu-Ntem": ["Oyem", "Bitam", "Mitzic", "Minvoul", "Médouneu"]
+};
+
+const GABON_ARRONDISSEMENTS = {
+  "Libreville": ["1er arrondissement", "2e arrondissement", "3e arrondissement", "4e arrondissement", "5e arrondissement", "6e arrondissement"],
+  "Port-Gentil": ["1er arrondissement", "2e arrondissement", "3e arrondissement"]
+};
+
+const GABON_QUARTIERS = {
+  "Libreville": ["Akébé", "Alibandeng", "Angondjé", "Awendjé", "Batterie IV", "Charbonnages", "Cité de la Démocratie", "Cocotiers", "Derrière la Prison", "Glass", "IAI", "La Peyrie", "Lalala", "Louis", "Mont-Bouët", "Montagne Sainte", "Nkembo", "Nombakélé", "Nzeng-Ayong", "Okala", "PK5", "PK6", "PK8", "PK9", "PK12", "Plaine Niger", "Sablière", "Sotega", "Sogatol", "Toulon", "Haut-de-Gué-Gué"],
+  "Owendo": ["Akournam", "Angondjé Sud", "Awoungou", "Nkoltang", "Terre Nouvelle", "Centre-ville"],
+  "Akanda": ["Angondjé", "Avorbam", "Beaulieu", "Cap Estérias", "Okala", "1er campement"],
+  "Ntoum": ["Centre-ville", "Andeme", "Nzogonzo"],
+  "Franceville": ["Bel-Air", "Château d'Eau", "Louassibi", "Mvengué", "Ombelé", "Pao", "Poubara", "Potos", "Centre-ville"],
+  "Port-Gentil": ["Balise", "Bord de Mer", "Cité Sonangol", "Grand Village", "Kilomètre 4 (SNI)", "Kilomètre 6", "Kilomètre 8", "Petit Paris", "Sable Blanc", "Ubi Nord", "Ubi Sud", "Vieux Village", "Wharf"],
+  "Oyem": ["Angone", "Ancien Village", "Nkolefoulou", "Nkoltang", "Simangoye", "Centre-ville"],
+  "Lambaréné": ["Ile Lambaréné", "Isaac", "Rive Droite", "Rive Gauche", "Adouma", "Centre-ville"],
+  "Mouila": ["Tsouka", "Ndouaniang", "Centre-ville"],
+  "Tchibanga": ["Centre-ville", "Divangui", "Mboungou"],
+  "Koulamoutou": ["Centre-ville", "Ikobe", "Lébombi"],
+  "Makokou": ["Centre-ville", "Ekata", "Mvadhi"]
+};
+
+const NATIONALITES = [
+  "Gabonaise", "Camerounaise", "Congolaise (Congo-Brazzaville)", "Congolaise (RD Congo)",
+  "Équato-guinéenne", "Centrafricaine", "Tchadienne", "Béninoise", "Burkinabè", "Ivoirienne",
+  "Ghanéenne", "Guinéenne", "Malienne", "Nigériane", "Nigérienne", "Sénégalaise", "Togolaise",
+  "Malgache", "Comorienne", "Rwandaise", "Burundaise", "Sud-africaine", "Éthiopienne", "Kenyane",
+  "Marocaine", "Algérienne", "Tunisienne", "Égyptienne", "Libanaise", "Syrienne",
+  "Française", "Belge", "Américaine", "Chinoise", "Indienne", "Apatride"
+];
+
+const BRIGADES_ZONES = [
+  "Estuaire – Libreville", "Estuaire – Akanda", "Estuaire – Owendo", "Estuaire – Ntoum", "Estuaire – Kango", "Estuaire – Cocobeach",
+  "Haut-Ogooué – Franceville", "Haut-Ogooué – Moanda", "Haut-Ogooué – Okondja",
+  "Moyen-Ogooué – Lambaréné", "Moyen-Ogooué – Ndjolé",
+  "Ngounié – Mouila", "Ngounié – Ndendé", "Ngounié – Fougamou",
+  "Nyanga – Tchibanga", "Nyanga – Mayumba",
+  "Ogooué-Ivindo – Makokou", "Ogooué-Ivindo – Booué",
+  "Ogooué-Lolo – Koulamoutou", "Ogooué-Lolo – Lastourville",
+  "Ogooué-Maritime – Port-Gentil", "Ogooué-Maritime – Omboué", "Ogooué-Maritime – Gamba",
+  "Woleu-Ntem – Oyem", "Woleu-Ntem – Bitam", "Woleu-Ntem – Mitzic"
+];
+
+const LOCALISATIONS_SIGNALER = (() => {
+  const set = new Set();
+  Object.values(GABON_VILLES).forEach(list => list.forEach(v => set.add(v)));
+  Object.values(GABON_QUARTIERS).forEach(list => list.forEach(q => set.add(q)));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+})();
+
+// Remplit un <select> avec une liste d'options + "Autre (préciser)".
+function fillSelect(selectEl, options, placeholder) {
+  const current = selectEl.value;
+  selectEl.innerHTML = '';
+  const optPlaceholder = document.createElement('option');
+  optPlaceholder.value = '';
+  optPlaceholder.textContent = placeholder || 'Veuillez sélectionner';
+  selectEl.appendChild(optPlaceholder);
+  options.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt;
+    o.textContent = opt;
+    selectEl.appendChild(o);
+  });
+  const optAutre = document.createElement('option');
+  optAutre.value = AUTRE_VALUE;
+  optAutre.textContent = 'Autre (préciser)';
+  selectEl.appendChild(optAutre);
+  if (options.includes(current)) selectEl.value = current;
+}
+
+// Relie un <select id="XSel"> + <input id="XAutre"> + <input type=hidden id="X">
+// afin que X.value reflète toujours la sélection ou la saisie libre,
+// sans rien changer au code existant qui lit document.getElementById('X').value.
+function setupCombo(baseId, options, placeholder) {
+  const sel = document.getElementById(baseId + 'Sel');
+  const autre = document.getElementById(baseId + 'Autre');
+  const hidden = document.getElementById(baseId);
+  if (!sel || !autre || !hidden) return null;
+  fillSelect(sel, options, placeholder);
+  const sync = () => {
+    if (sel.value === AUTRE_VALUE) {
+      autre.style.display = '';
+      hidden.value = autre.value.trim();
+    } else {
+      autre.style.display = 'none';
+      autre.value = '';
+      hidden.value = sel.value;
+    }
+  };
+  sel.addEventListener('change', () => { sync(); if (sel.value === AUTRE_VALUE) autre.focus(); });
+  autre.addEventListener('input', () => { hidden.value = autre.value.trim(); });
+  sync();
+  return { sel, autre, hidden, setOptions: (opts, ph) => { fillSelect(sel, opts, ph); sync(); } };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Signalement rapide : Brigade / Zone + Localisation
+  setupCombo('brigade', BRIGADES_ZONES, 'Veuillez sélectionner');
+  setupCombo('location', LOCALISATIONS_SIGNALER, 'Veuillez sélectionner');
+
+  // Retour d'info : Ville / Arrondissement / Quartier / Nationalité, en cascade avec la Province
+  const villeCombo = setupCombo('r_ville', [], "Veuillez d'abord choisir une province");
+  const arrCombo = setupCombo('r_arrondissement', [], 'Sans objet');
+  const quartierCombo = setupCombo('r_quartier', [], 'Veuillez sélectionner');
+  setupCombo('r_nationalite', NATIONALITES, 'Veuillez sélectionner');
+
+  const provinceSel = document.getElementById('r_province');
+  if (provinceSel) {
+    provinceSel.addEventListener('change', () => {
+      const villes = GABON_VILLES[provinceSel.value] || [];
+      villeCombo.setOptions(villes, villes.length ? 'Veuillez sélectionner' : "Veuillez d'abord choisir une province");
+      arrCombo.setOptions([], 'Sans objet');
+      quartierCombo.setOptions([], 'Veuillez sélectionner');
+    });
+  }
+
+  const villeSelEl = document.getElementById('r_villeSel');
+  if (villeSelEl) {
+    villeSelEl.addEventListener('change', () => {
+      const ville = villeSelEl.value;
+      const arrondissements = GABON_ARRONDISSEMENTS[ville] || [];
+      const quartiers = GABON_QUARTIERS[ville] || [];
+      arrCombo.setOptions(arrondissements, arrondissements.length ? 'Veuillez sélectionner' : 'Sans objet');
+      quartierCombo.setOptions(quartiers, 'Veuillez sélectionner');
+    });
+  }
+});
+
+// --- Couche de stockage : Supabase (gratuit, partagé) si configuré, sinon localStorage (local à l'appareil) ---
+// DEFAULT_SUPABASE_URL / DEFAULT_SUPABASE_ANON_KEY : à renseigner une seule fois (voir Project Settings → API
+// dans votre tableau de bord Supabase) pour que l'app se connecte automatiquement sur tous les téléphones,
+// sans que personne n'ait besoin d'ouvrir le bouton réglages.
+const DEFAULT_SUPABASE_URL = '';
+const DEFAULT_SUPABASE_ANON_KEY = '';
+
+const Store = {
+  mode: 'local',
+  client: null,
+  init() {
+    const raw = localStorage.getItem('rc_supabase_config');
+    let cfg = null;
+    if (raw) {
+      try { cfg = JSON.parse(raw); } catch (e) { cfg = null; }
+    }
+    if (!cfg && DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
+      cfg = { url: DEFAULT_SUPABASE_URL, anonKey: DEFAULT_SUPABASE_ANON_KEY };
+    }
+    if (cfg && cfg.url && cfg.anonKey) {
+      try {
+        this.client = window.supabase.createClient(cfg.url, cfg.anonKey);
+        this.mode = 'supabase';
+      } catch (e) {
+        console.error('Config Supabase invalide', e);
+        this.mode = 'local';
+      }
+    } else {
+      this.mode = 'local';
+    }
+  },
+  async add(report) {
+    if (this.mode === 'supabase') {
+      const { error } = await this.client.from('signalements').upsert({
+        id: report.id,
+        data: report,
+        created_at: report.timestamp
+      });
+      if (error) throw error;
+    } else {
+      const all = JSON.parse(localStorage.getItem('rc_signalements') || '{}');
+      all[report.id] = report;
+      localStorage.setItem('rc_signalements', JSON.stringify(all));
+    }
+  },
+  async list() {
+    if (this.mode === 'supabase') {
+      const { data, error } = await this.client
+        .from('signalements')
+        .select('data')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(row => row.data);
+    }
+    const all = JSON.parse(localStorage.getItem('rc_signalements') || '{}');
+    return Object.values(all);
+  }
+};
+Store.init();
+
+// --- Authentification admin (Supabase Auth) : seuls les comptes admin créés
+// dans Supabase peuvent voir/gérer les signalements. Les agents de terrain
+// utilisent le formulaire sans jamais se connecter. ---
+const AdminAuth = {
+  isAdmin: false,
+  async init() {
+    if (Store.mode !== 'supabase' || !Store.client) return;
+    const { data } = await Store.client.auth.getSession();
+    this.isAdmin = !!data.session;
+  },
+  async login(email, password) {
+    if (Store.mode !== 'supabase' || !Store.client) {
+      throw new Error('La synchronisation n\'est pas configurée sur cet appareil.');
+    }
+    const { error } = await Store.client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    this.isAdmin = true;
+  },
+  async signupWithInvite(email, password, code) {
+    if (Store.mode !== 'supabase' || !Store.client) {
+      throw new Error('La synchronisation n\'est pas configurée sur cet appareil.');
+    }
+    const { data: invite, error: findErr } = await Store.client
+      .from('admin_invites').select('code, used').eq('code', code.trim().toUpperCase()).maybeSingle();
+    if (findErr) throw new Error('Impossible de vérifier ce code pour le moment.');
+    if (!invite || invite.used) throw new Error('Code d\'invitation invalide ou déjà utilisé.');
+    const { error: signErr } = await Store.client.auth.signUp({ email, password });
+    if (signErr) throw signErr;
+    await Store.client.auth.signInWithPassword({ email, password });
+    await Store.client.from('admin_invites').update({ used: true }).eq('code', code.trim().toUpperCase());
+    this.isAdmin = true;
+  },
+  async generateInvite() {
+    const code = 'RC-' + Math.floor(1000 + Math.random() * 9000);
+    const { error } = await Store.client.from('admin_invites').insert({ code });
+    if (error) throw error;
+    return code;
+  },
+  async logout() {
+    if (Store.client) await Store.client.auth.signOut();
+    this.isAdmin = false;
+  }
+};
+
+function updateAdminUI() {
+  const isAdmin = AdminAuth.isAdmin;
+  document.getElementById('gearBtn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('dashboardTab').style.display = isAdmin ? '' : 'none';
+  const adminBtn = document.getElementById('adminBtn');
+  adminBtn.textContent = isAdmin ? '🔓' : '🔒';
+  adminBtn.classList.toggle('on', isAdmin);
+  document.getElementById('adminLoginFields').style.display = isAdmin ? 'none' : '';
+  document.getElementById('adminManageFields').style.display = isAdmin ? '' : 'none';
+  document.getElementById('adminLoginBtn').style.display = isAdmin ? 'none' : '';
+  document.getElementById('adminLogoutBtn').style.display = isAdmin ? '' : 'none';
+  document.getElementById('adminModalText').textContent = isAdmin
+    ? 'Vous gérez les signalements et pouvez inviter d\'autres administrateurs.'
+    : 'Réservé aux responsables. Les agents de terrain n\'ont pas besoin de se connecter — ils remplissent simplement le formulaire.';
+  if (!isAdmin) {
+    const dashTab = document.querySelector('.tab[data-tab="dashboard"]');
+    if (dashTab && dashTab.classList.contains('active')) {
+      document.querySelector('.tab[data-tab="form"]').click();
+    }
+  }
+  loadMyReports();
+}
+
+document.getElementById('adminBtn').addEventListener('click', () => {
+  document.getElementById('adminModal').classList.add('show');
+  document.getElementById('adminStatus').textContent = '';
+});
+document.getElementById('closeAdmin').addEventListener('click', () => {
+  document.getElementById('adminModal').classList.remove('show');
+});
+
+let signupMode = false;
+document.getElementById('toggleSignupMode').addEventListener('click', (e) => {
+  e.preventDefault();
+  signupMode = !signupMode;
+  document.getElementById('inviteCodeField').style.display = signupMode ? '' : 'none';
+  document.getElementById('adminLoginBtn').textContent = signupMode ? 'Créer mon compte admin' : 'Se connecter';
+  e.target.textContent = signupMode ? 'J\'ai déjà un compte admin' : 'J\'ai un code d\'invitation et je n\'ai pas encore de compte';
+});
+
+document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  const status = document.getElementById('adminStatus');
+  if (!email || !password) { status.textContent = 'Renseignez l\'email et le mot de passe.'; return; }
+  status.textContent = 'Connexion...';
+  try {
+    if (signupMode) {
+      const code = document.getElementById('inviteCode').value;
+      if (!code.trim()) { status.textContent = 'Renseignez le code d\'invitation.'; return; }
+      await AdminAuth.signupWithInvite(email, password, code);
+    } else {
+      await AdminAuth.login(email, password);
+    }
+    status.textContent = '';
+    updateAdminUI();
+    document.getElementById('adminModal').classList.remove('show');
+  } catch (err) {
+    status.textContent = err.message || 'Échec de la connexion.';
+  }
+});
+
+document.getElementById('adminLogoutBtn').addEventListener('click', async () => {
+  await AdminAuth.logout();
+  updateAdminUI();
+  document.getElementById('adminModal').classList.remove('show');
+});
+
+document.getElementById('genInviteBtn').addEventListener('click', async () => {
+  const status = document.getElementById('inviteStatus');
+  status.textContent = 'Génération...';
+  try {
+    const code = await AdminAuth.generateInvite();
+    status.textContent = `Code généré : ${code} — transmettez-le à la personne à inviter (valable une seule fois).`;
+  } catch (err) {
+    status.textContent = 'Impossible de générer un code pour le moment.';
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+AdminAuth.init().then(updateAdminUI);
+
+(function(){
+  let selectedNeeds = new Set();
+  let selectedLevel = null;
+  let currentGeo = null;
+  let currentFilter = 'tous';
+
+  function updateSyncBadge() {
+    const badge = document.getElementById('syncBadge');
+    if (Store.mode === 'supabase') {
+      badge.textContent = '● Synchronisé — partagé entre tous les appareils';
+      badge.classList.add('on');
+    } else {
+      badge.textContent = '● Mode local (cet appareil uniquement)';
+      badge.classList.remove('on');
+    }
+  }
+  updateSyncBadge();
+  loadMyReports();
+
+  const settingsModal = document.getElementById('settingsModal');
+  document.getElementById('gearBtn').addEventListener('click', () => {
+    const raw = localStorage.getItem('rc_supabase_config');
+    if (raw) document.getElementById('supabaseConfigInput').value = raw;
+    document.getElementById('configStatus').textContent = '';
+    settingsModal.classList.add('show');
+  });
+  document.getElementById('closeSettings').addEventListener('click', () => settingsModal.classList.remove('show'));
+  settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.remove('show'); });
+
+  document.getElementById('saveConfig').addEventListener('click', () => {
+    const val = document.getElementById('supabaseConfigInput').value.trim();
+    const statusEl = document.getElementById('configStatus');
+    if (!val) { statusEl.textContent = 'Collez l\'URL et la clé Supabase avant d\'enregistrer.'; statusEl.className = 'modal-status err'; return; }
+    try {
+      const parsed = JSON.parse(val);
+      if (!parsed.url || !parsed.anonKey) throw new Error('url ou anonKey manquant');
+      localStorage.setItem('rc_supabase_config', JSON.stringify(parsed));
+      Store.init();
+      updateSyncBadge();
+      statusEl.textContent = 'Synchronisation activée. Les prochains signalements seront partagés.';
+      statusEl.className = 'modal-status ok';
+    } catch (e) {
+      statusEl.textContent = 'Configuration invalide — vérifiez le format JSON (url + anonKey).';
+      statusEl.className = 'modal-status err';
+    }
+  });
+
+  document.getElementById('clearConfig').addEventListener('click', () => {
+    localStorage.removeItem('rc_supabase_config');
+    document.getElementById('supabaseConfigInput').value = '';
+    Store.mode = 'local';
+    updateSyncBadge();
+    document.getElementById('configStatus').textContent = 'Retour au mode local.';
+    document.getElementById('configStatus').className = 'modal-status ok';
+  });
+
+  const tabs = document.querySelectorAll('.tab');
+  const formPanel = document.getElementById('formPanel');
+  const retourPanel = document.getElementById('retourPanel');
+  const dashboardPanel = document.getElementById('dashboardPanel');
+  const panelsByTab = { form: formPanel, retour: retourPanel, dashboard: dashboardPanel };
+
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    Object.entries(panelsByTab).forEach(([key, panel]) => {
+      panel.style.display = key === t.dataset.tab ? '' : 'none';
+    });
+    if (t.dataset.tab === 'dashboard') loadDashboard();
+    if (t.dataset.tab === 'retour') loadRetourHistory();
+    if (t.dataset.tab === 'form') loadMyReports();
+  }));
+
+  document.querySelectorAll('#needsChips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const need = chip.dataset.need;
+      if (selectedNeeds.has(need)) {
+        selectedNeeds.delete(need);
+        chip.classList.remove('selected');
+      } else {
+        selectedNeeds.add(need);
+        chip.classList.add('selected');
+      }
+    });
+  });
+
+  document.querySelectorAll('#urgencyGroup .urgency-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('#urgencyGroup .urgency-opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selectedLevel = opt.dataset.level;
+    });
+  });
+
+  const geoBtn = document.getElementById('geoBtn');
+  const geoStatus = document.getElementById('geoStatus');
+  geoBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      geoStatus.textContent = "Géolocalisation indisponible sur cet appareil";
+      geoStatus.className = 'geo-status err';
+      return;
+    }
+    geoStatus.textContent = "Capture en cours...";
+    geoStatus.className = 'geo-status';
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentGeo = { lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) };
+        geoStatus.textContent = `Position capturée (${currentGeo.lat}, ${currentGeo.lng})`;
+        geoStatus.className = 'geo-status ok';
+      },
+      err => {
+        geoStatus.textContent = "Position non disponible — saisir la localisation manuellement";
+        geoStatus.className = 'geo-status err';
+      },
+      { timeout: 8000 }
+    );
+  });
+
+  const form = document.getElementById('reportForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const stampOverlay = document.getElementById('stampOverlay');
+  const stampRef = document.getElementById('stampRef');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!selectedLevel) {
+      alert("Merci de choisir un niveau d'urgence.");
+      return;
+    }
+    if (!document.getElementById('brigade').value.trim()) {
+      alert("Merci de préciser la Brigade / Zone.");
+      document.getElementById('brigadeSel').focus();
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Transmission en cours...";
+
+    const id = 'evt_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+    const refShort = '#' + Date.now().toString().slice(-6);
+
+    const report = {
+      id,
+      ref: refShort,
+      volunteer: document.getElementById('volunteer').value,
+      brigade: document.getElementById('brigade').value,
+      eventType: document.getElementById('eventType').value,
+      description: document.getElementById('description').value,
+      affected: document.getElementById('affected').value || null,
+      location: document.getElementById('location').value,
+      geo: currentGeo,
+      needs: Array.from(selectedNeeds),
+      level: selectedLevel,
+      status: 'nouveau',
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      await Store.add(report);
+      saveMyReportRef(report);
+      stampRef.textContent = refShort;
+      form.style.display = 'none';
+      stampOverlay.classList.add('show');
+      loadMyReports();
+    } catch (err) {
+      alert("La transmission a échoué. Vérifiez votre connexion et réessayez.");
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Transmettre le signalement";
+    }
+  });
+
+  document.getElementById('newReportBtn').addEventListener('click', () => {
+    form.reset();
+    selectedNeeds = new Set();
+    selectedLevel = null;
+    currentGeo = null;
+    document.querySelectorAll('#needsChips .chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('#urgencyGroup .urgency-opt').forEach(o => o.classList.remove('selected'));
+    geoStatus.textContent = 'Non capturée';
+    geoStatus.className = 'geo-status';
+    stampOverlay.classList.remove('show');
+    form.style.display = '';
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Transmettre le signalement";
+  });
+
+  document.querySelectorAll('#filterRow .filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#filterRow .filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      renderTickets(window.__allReports || []);
+    });
+  });
+
+  function renderStats(reports) {
+    const total = reports.length;
+    const eleve = reports.filter(r => r.level === 'eleve').length;
+    const moyen = reports.filter(r => r.level === 'moyen').length;
+    const faible = reports.filter(r => r.level === 'faible').length;
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat"><div class="n">${total}</div><div class="l">Total</div></div>
+      <div class="stat"><div class="n">${eleve}</div><div class="l">Élevé</div></div>
+      <div class="stat"><div class="n">${moyen}</div><div class="l">Moyen</div></div>
+      <div class="stat"><div class="n">${faible}</div><div class="l">Faible</div></div>
+    `;
+    document.getElementById('countBadge').textContent = total;
+  }
+
+  function renderTickets(reports) {
+    const filtered = currentFilter === 'tous' ? reports : reports.filter(r => r.level === currentFilter);
+    const list = document.getElementById('ticketsList');
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-state">Aucun signalement pour ce filtre.</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(r => {
+      const date = new Date(r.timestamp);
+      const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const geoStr = r.geo ? `${r.geo.lat}, ${r.geo.lng}` : 'non capturée';
+      const needsHtml = (r.needs || []).map(n => `<span class="need-tag">${escapeHtml(n)}</span>`).join('');
+      const isTraite = r.status === 'traite';
+      return `
+        <div class="ticket ${r.level} ${isTraite ? 'traite' : ''}">
+          <div class="ticket-top">
+            <span class="ticket-ref">${escapeHtml(r.ref)} · ${dateStr}</span>
+            <span class="ticket-level">${r.level}</span>
+          </div>
+          <div class="ticket-title">${escapeHtml(r.eventType || 'Événement')} — ${escapeHtml(r.brigade || '')}</div>
+          <div class="ticket-meta">Par ${escapeHtml(r.volunteer || 'Volontaire')} · ${escapeHtml(r.location || 'Lieu non précisé')} · GPS: ${escapeHtml(geoStr)}${r.affected ? ' · ~' + escapeHtml(String(r.affected)) + ' personnes affectées' : ''}</div>
+          <div class="ticket-desc">${escapeHtml(r.description || '')}</div>
+          <div class="ticket-needs">${needsHtml}</div>
+          <div class="ticket-actions">
+            ${isTraite
+              ? `<span class="status-badge traite">✓ Traité</span>`
+              : `<span class="status-badge nouveau">Nouveau</span><button type="button" class="mark-treated-btn" data-id="${escapeHtml(r.id)}">Marquer comme traité</button>`}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('ticketsList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.mark-treated-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const report = (window.__allReports || []).find(r => r.id === id);
+    if (!report) return;
+    btn.disabled = true;
+    btn.textContent = 'Mise à jour...';
+    try {
+      report.status = 'traite';
+      await Store.add(report);
+      renderTickets(window.__allReports);
+    } catch (err) {
+      alert("Impossible de mettre à jour ce signalement. Vérifiez votre connexion.");
+      btn.disabled = false;
+      btn.textContent = 'Marquer comme traité';
+    }
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
+  // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
+  // déjà été traités par un admin. ---
+  function saveMyReportRef(report) {
+    const mine = JSON.parse(localStorage.getItem('rc_mes_signalements') || '[]');
+    mine.unshift({ id: report.id, ref: report.ref, eventType: report.eventType, timestamp: report.timestamp });
+    localStorage.setItem('rc_mes_signalements', JSON.stringify(mine.slice(0, 20)));
+  }
+
+  async function loadMyReports() {
+    const mine = JSON.parse(localStorage.getItem('rc_mes_signalements') || '[]');
+    const section = document.getElementById('myReportsSection');
+    const listEl = document.getElementById('myReportsList');
+    if (mine.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    listEl.innerHTML = '<div class="loading">Chargement du statut...</div>';
+    try {
+      const all = await Store.list();
+      const byId = {};
+      all.forEach(r => { byId[r.id] = r; });
+      listEl.innerHTML = mine.map(m => {
+        const current = byId[m.id];
+        const isTraite = current && current.status === 'traite';
+        return `<div class="my-report-item">
+          <span>${escapeHtml(m.ref)} · ${escapeHtml(m.eventType || 'Événement')}</span>
+          <span class="status-badge ${isTraite ? 'traite' : 'nouveau'}">${isTraite ? '✓ Traité' : 'En attente'}</span>
+        </div>`;
+      }).join('');
+    } catch (err) {
+      listEl.innerHTML = '<div class="empty-state">Impossible de vérifier le statut pour le moment.</div>';
+    }
+  }
+
+  async function loadDashboard() {
+    document.getElementById('ticketsList').innerHTML = '<div class="loading">Chargement des signalements...</div>';
+    try {
+      const all = await Store.list();
+      const reports = all.filter(r => !r.formType || r.formType === 'signalement');
+      reports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      window.__allReports = reports;
+      renderStats(reports);
+      renderTickets(reports);
+    } catch (err) {
+      document.getElementById('ticketsList').innerHTML = '<div class="empty-state">Impossible de charger les signalements pour le moment.</div>';
+    }
+  }
+
+  document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const reports = window.__allReports || [];
+    if (reports.length === 0) { alert('Aucun signalement à exporter.'); return; }
+    const headers = ['Reference','Date','Volontaire','Brigade','Type','Description','PersonnesAffectees','Localisation','Latitude','Longitude','Besoins','NiveauUrgence'];
+    const rows = reports.map(r => [
+      r.ref, r.timestamp, r.volunteer, r.brigade, r.eventType,
+      (r.description || '').replace(/[\r\n]+/g, ' '),
+      r.affected || '', r.location || '',
+      r.geo ? r.geo.lat : '', r.geo ? r.geo.lng : '',
+      (r.needs || []).join('; '), r.level
+    ]);
+    const csv = [headers, ...rows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'signalements-croix-rouge-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // --- Formulaire de retour d'information (fiche famille) ---
+  const AGE1_LABELS = ['0-1 ans','2 ans','3 ans','4 ans','5 ans','6 ans','7 ans','8 ans'];
+  const AGE2_LABELS = ['9 ans','10 ans','11 ans','12 ans','13 ans'];
+
+  function buildAgeGrid(containerId, labels, prefix) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = labels.map((label, i) => `
+      <div class="age-cell">
+        <span>${label}</span>
+        <input type="number" min="0" id="${prefix}_${i}">
+      </div>
+    `).join('');
+  }
+  buildAgeGrid('ageGrid1', AGE1_LABELS, 'age1');
+  buildAgeGrid('ageGrid2', AGE2_LABELS, 'age2');
+
+  let selectedVulns = new Set();
+  document.querySelectorAll('#vulnChips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const v = chip.dataset.vuln;
+      if (selectedVulns.has(v)) { selectedVulns.delete(v); chip.classList.remove('selected'); }
+      else { selectedVulns.add(v); chip.classList.add('selected'); }
+    });
+  });
+
+  // Photo : compression côté navigateur avant stockage (garde les fiches légères)
+  let photoDataUrl = null;
+  const photoInput = document.getElementById('r_photoInput');
+  const photoPreview = document.getElementById('r_photoPreview');
+  const photoHint = document.getElementById('r_photoHint');
+  photoInput.addEventListener('change', () => {
+    const file = photoInput.files[0];
+    if (!file) return;
+    photoHint.textContent = 'Traitement de la photo...';
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const maxDim = 900;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        photoDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        photoPreview.src = photoDataUrl;
+        photoPreview.style.display = 'block';
+        photoHint.textContent = 'Photo prête à être transmise.';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Enregistreur vocal
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioDataUrl = null;
+  let isRecording = false;
+  const voiceBtn = document.getElementById('r_voiceBtn');
+  const voiceStatus = document.getElementById('r_voiceStatus');
+  const audioPreview = document.getElementById('r_audioPreview');
+
+  voiceBtn.addEventListener('click', async () => {
+    if (!isRecording) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        voiceStatus.textContent = "Micro non disponible sur cet appareil";
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = () => {
+            audioDataUrl = reader.result;
+            audioPreview.src = audioDataUrl;
+            audioPreview.style.display = 'block';
+          };
+          reader.readAsDataURL(blob);
+          stream.getTracks().forEach(t => t.stop());
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        voiceBtn.textContent = '■ Arrêter';
+        voiceBtn.classList.add('recording');
+        voiceStatus.textContent = 'Enregistrement en cours...';
+      } catch (e) {
+        voiceStatus.textContent = "Accès au micro refusé";
+      }
+    } else {
+      mediaRecorder.stop();
+      isRecording = false;
+      voiceBtn.textContent = '● Enregistrer';
+      voiceBtn.classList.remove('recording');
+      voiceStatus.textContent = 'Enregistrement prêt';
+    }
+  });
+
+  const retourForm = document.getElementById('retourForm');
+  const rSubmitBtn = document.getElementById('r_submitBtn');
+  const rStampOverlay = document.getElementById('r_stampOverlay');
+
+  retourForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!document.getElementById('r_ville').value.trim()) {
+      alert("Merci de préciser la Ville.");
+      document.getElementById('r_villeSel').focus();
+      return;
+    }
+    rSubmitBtn.disabled = true;
+    rSubmitBtn.textContent = 'Enregistrement...';
+
+    const id = 'retour_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const refShort = '#' + Date.now().toString().slice(-6);
+    const age1 = AGE1_LABELS.map((label, i) => ({ label, value: document.getElementById('age1_' + i).value || 0 }));
+    const age2 = AGE2_LABELS.map((label, i) => ({ label, value: document.getElementById('age2_' + i).value || 0 }));
+
+    const record = {
+      id, ref: refShort, formType: 'retour',
+      timestamp: new Date().toISOString(),
+      sinistre: document.getElementById('r_sinistre').value,
+      vulnerable: document.getElementById('r_vulnerable').value,
+      province: document.getElementById('r_province').value,
+      ville: document.getElementById('r_ville').value,
+      arrondissement: document.getElementById('r_arrondissement').value,
+      quartier: document.getElementById('r_quartier').value,
+      chefFamille: document.getElementById('r_chef').value,
+      age: document.getElementById('r_age').value || null,
+      telephone: document.getElementById('r_tel').value,
+      nationalite: document.getElementById('r_nationalite').value,
+      profession: document.getElementById('r_profession').value,
+      matrimonial: document.getElementById('r_matrimonial').value,
+      handicap: document.getElementById('r_handicap').value,
+      tailleMenage: document.getElementById('r_taille').value || null,
+      repasParJour: document.getElementById('r_repas').value || null,
+      enfants0a8: age1,
+      enfants9a13: age2,
+      prePrimaire: document.getElementById('r_prepri').value || 0,
+      primaire: document.getElementById('r_primaire').value || 0,
+      secondaire: document.getElementById('r_secondaire').value || 0,
+      superieur: document.getElementById('r_superieur').value || 0,
+      personnesVulnerables: Array.from(selectedVulns),
+      enfantsSansActe: document.getElementById('r_sansacte').value || 0,
+      femmesEnAgeProcreer: document.getElementById('r_femmesproc').value || 0,
+      typeMaison: document.getElementById('r_typemaison').value,
+      statutOccupant: document.getElementById('r_statutocc').value,
+      feedback: document.getElementById('r_feedback').value,
+      suggestions: document.getElementById('r_suggestions').value,
+      photo: photoDataUrl,
+      audio: audioDataUrl
+    };
+
+    try {
+      await Store.add(record);
+      document.getElementById('r_stampRef').textContent = refShort;
+      retourForm.style.display = 'none';
+      rStampOverlay.classList.add('show');
+      loadRetourHistory();
+    } catch (err) {
+      alert("L'enregistrement a échoué. Vérifiez votre connexion et réessayez.");
+    } finally {
+      rSubmitBtn.disabled = false;
+      rSubmitBtn.textContent = 'Save';
+    }
+  });
+
+  document.getElementById('r_newReportBtn').addEventListener('click', () => {
+    retourForm.reset();
+    selectedVulns = new Set();
+    document.querySelectorAll('#vulnChips .chip').forEach(c => c.classList.remove('selected'));
+    buildAgeGrid('ageGrid1', AGE1_LABELS, 'age1');
+    buildAgeGrid('ageGrid2', AGE2_LABELS, 'age2');
+    photoDataUrl = null;
+    photoPreview.style.display = 'none';
+    photoHint.textContent = '';
+    audioDataUrl = null;
+    audioPreview.style.display = 'none';
+    voiceStatus.textContent = 'Aucun enregistrement';
+    rStampOverlay.classList.remove('show');
+    retourForm.style.display = '';
+  });
+
+  async function loadRetourHistory() {
+    const el = document.getElementById('retourHistory');
+    if (!AdminAuth.isAdmin) { el.innerHTML = ''; return; }
+    el.innerHTML = '<h3>Dernières fiches enregistrées</h3><div class="loading">Chargement...</div>';
+    try {
+      const all = await Store.list();
+      const retours = all.filter(r => r.formType === 'retour');
+      retours.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      if (retours.length === 0) {
+        el.innerHTML = '<h3>Dernières fiches enregistrées</h3><div class="empty-state">Aucune fiche pour le moment.</div>';
+        return;
+      }
+      const items = retours.slice(0, 12).map(r => {
+        const date = new Date(r.timestamp);
+        const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+        return `<div class="retour-item">
+          <strong>${escapeHtml(r.chefFamille || 'Famille non nommée')}</strong> — ${escapeHtml(r.ville || '')}${r.quartier ? ', ' + escapeHtml(r.quartier) : ''}
+          <div class="rt-meta">${escapeHtml(r.ref)} · ${dateStr} · ${escapeHtml(r.sinistre || '')} · Ménage: ${escapeHtml(String(r.tailleMenage || '—'))} pers.</div>
+        </div>`;
+      }).join('');
+      el.innerHTML = '<h3>Dernières fiches enregistrées</h3>' + items;
+    } catch (err) {
+      el.innerHTML = '<h3>Dernières fiches enregistrées</h3><div class="empty-state">Impossible de charger l\'historique.</div>';
+    }
+  }
+})();
+</script>
+</body>
+</html>
