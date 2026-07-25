@@ -72,7 +72,6 @@ export default function Benevoles() {
             Ouvrir l'app web (PWA)
           </a>
         </div>
-        </div>
 
         <AnimatePresence mode="wait">
           {sent ? (
