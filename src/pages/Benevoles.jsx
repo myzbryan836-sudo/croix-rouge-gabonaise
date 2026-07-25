@@ -57,9 +57,9 @@ export default function Benevoles() {
 
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <p className="font-display uppercase font-extrabold text-sm mb-1">App � Carnet de terrain �</p>
+            <p className="font-display uppercase font-extrabold text-sm mb-1">App « Carnet de terrain »</p>
             <p className="text-cr-dark/60 text-sm">
-              Application d�di�e aux volontaires pour remonter les signalements depuis le terrain, m�me sans connexion internet.
+              Application dédiée aux volontaires pour remonter les signalements depuis le terrain, même sans connexion internet.
             </p>
           </div>
 
