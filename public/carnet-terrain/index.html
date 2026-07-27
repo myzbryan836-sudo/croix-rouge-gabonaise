@@ -405,6 +405,11 @@
     border: 1px solid var(--line);
     display: block;
   }
+
+  .media-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .media-thumb { position: relative; width: 80px; height: 80px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #000; }
+  .media-thumb img, .media-thumb video { width: 100%; height: 100%; object-fit: cover; }
+  .media-remove { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; }
   .voice-row { display: flex; gap: 8px; align-items: center; }
   .geo-btn.recording { background: var(--rc-red); }
 
@@ -728,6 +733,13 @@
           <div class="urgency-opt" data-level="moyen">Moyen</div>
           <div class="urgency-opt" data-level="eleve">Élevé</div>
         </div>
+      </div>
+
+      <div class="field">
+        <label>Photos ou videos de la situation (5 maximum)</label>
+        <input type="file" id="mediaInput" accept="image/*,video/*" capture="environment" multiple class="file-input">
+        <div class="media-grid" id="mediaGrid"></div>
+        <p class="hint" id="mediaHint">0 / 5 fichier(s) ajoute(s)</p>
       </div>
 
       <button type="submit" class="submit-btn" id="submitBtn">Transmettre le signalement</button>
@@ -1507,6 +1519,7 @@ AdminAuth.init().then(updateAdminUI);
       location: document.getElementById('location').value,
       geo: currentGeo,
       needs: Array.from(selectedNeeds),
+      media: selectedMedia.map(m => ({ type: m.type, dataUrl: m.dataUrl })),
       level: selectedLevel,
       status: 'nouveau',
       timestamp: new Date().toISOString()
@@ -1684,6 +1697,103 @@ AdminAuth.init().then(updateAdminUI);
   });
   document.getElementById('detailModal').addEventListener('click', (e) => {
     if (e.target.id === 'detailModal') document.getElementById('detailModal').classList.remove('show');
+
+  // --- Gestion des photos/videos jointes au signalement ---
+  let selectedMedia = [];
+  const MAX_MEDIA = 5;
+  const MAX_IMAGE_DIMENSION = 1280;
+  const IMAGE_QUALITY = 0.7;
+
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+            if (width > height) {
+              height = Math.round(height * (MAX_IMAGE_DIMENSION / width));
+              width = MAX_IMAGE_DIMENSION;
+            } else {
+              width = Math.round(width * (MAX_IMAGE_DIMENSION / height));
+              height = MAX_IMAGE_DIMENSION;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', IMAGE_QUALITY));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderMediaGrid() {
+    const grid = document.getElementById('mediaGrid');
+    const hint = document.getElementById('mediaHint');
+    if (!grid || !hint) return;
+    grid.innerHTML = selectedMedia.map((m, i) => {
+      const inner = m.type === 'video'
+        ? '<video src="' + m.dataUrl + '" muted></video>'
+        : '<img src="' + m.dataUrl + '" alt="media">';
+      return '<div class="media-thumb">' + inner + '<button type="button" class="media-remove" data-index="' + i + '">x</button></div>';
+    }).join('');
+    hint.textContent = selectedMedia.length + ' / ' + MAX_MEDIA + ' fichier(s) ajoute(s)';
+  }
+
+  document.getElementById('mediaGrid').addEventListener('click', (e) => {
+    const btn = e.target.closest('.media-remove');
+    if (!btn) return;
+    const index = parseInt(btn.dataset.index, 10);
+    selectedMedia.splice(index, 1);
+    renderMediaGrid();
+  });
+
+  document.getElementById('mediaInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    const hint = document.getElementById('mediaHint');
+    for (const file of files) {
+      if (selectedMedia.length >= MAX_MEDIA) {
+        if (hint) hint.textContent = 'Limite de ' + MAX_MEDIA + ' fichiers atteinte';
+        break;
+      }
+      try {
+        if (file.type.indexOf('image/') === 0) {
+          const dataUrl = await compressImage(file);
+          selectedMedia.push({ type: 'image', dataUrl: dataUrl });
+        } else if (file.type.indexOf('video/') === 0) {
+          const dataUrl = await readFileAsDataUrl(file);
+          selectedMedia.push({ type: 'video', dataUrl: dataUrl });
+        }
+      } catch (err) {
+        console.error('Erreur de lecture du fichier :', err);
+      }
+    }
+    renderMediaGrid();
+    e.target.value = '';
+  });
+
+  function resetMediaSelection() {
+    selectedMedia = [];
+    renderMediaGrid();
+  }
   });
 
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
