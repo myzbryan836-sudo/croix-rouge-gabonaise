@@ -644,6 +644,7 @@
       <div id="detailModalBody" class="modal-text"></div>
       <div class="modal-actions">
         <button class="modal-btn primary" id="detailMarkTreatedBtn" style="display:none;">Marquer comme traité</button>
+        <button class="modal-btn secondary" id="detailDeleteBtn" style="display:none;color:#c0392b;border-color:#c0392b;">Supprimer</button>
       </div>
     </div>
   </div>
@@ -1233,6 +1234,16 @@ const Store = {
     }
     const all = JSON.parse(localStorage.getItem('rc_signalements') || '{}');
     return Object.values(all);
+  },
+  async remove(id) {
+    if (this.mode === 'supabase') {
+      const { error } = await this.client.from('signalements').delete().eq('id', id);
+      if (error) throw error;
+    } else {
+      const all = JSON.parse(localStorage.getItem('rc_signalements') || '{}');
+      delete all[id];
+      localStorage.setItem('rc_signalements', JSON.stringify(all));
+    }
   }
 };
 Store.init();
@@ -1602,6 +1613,7 @@ AdminAuth.init().then(updateAdminUI);
           <div class="ticket-needs">${needsHtml}</div>
           <div class="ticket-actions">
             <button type="button" class="modal-btn secondary voir-detail-btn" style="flex:none;padding:6px 12px;font-size:12px;" data-id="${escapeHtml(r.id)}">Voir detail</button>
+            ${AdminAuth.isAdmin ? `<button type="button" class="delete-report-btn" data-id="${escapeHtml(r.id)}" style="color:#c0392b;border-color:#c0392b;">Supprimer</button>` : ""}
             ${isTraite
               ? `<span class="status-badge traite">✓ Traité</span>`
               : `<span class="status-badge nouveau">Nouveau</span><button type="button" class="mark-treated-btn" data-id="${escapeHtml(r.id)}">Marquer comme traité</button>`}
@@ -1643,6 +1655,24 @@ AdminAuth.init().then(updateAdminUI);
     const report = (window.__allReports || []).find(r => r.id === id);
     if (!report) return;
     openDetailModal(report);
+
+  document.getElementById('ticketsList').addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('.delete-report-btn');
+    if (!delBtn) return;
+    if (!AdminAuth.isAdmin) return;
+    if (!confirm('Supprimer definitivement ce signalement ? Cette action est irreversible.')) return;
+    delBtn.disabled = true;
+    delBtn.textContent = 'Suppression...';
+    try {
+      await Store.remove(delBtn.dataset.id);
+      window.__allReports = (window.__allReports || []).filter(r => r.id !== delBtn.dataset.id);
+      renderTickets(window.__allReports);
+    } catch (err) {
+      alert("Impossible de supprimer ce signalement. Verifiez votre connexion.");
+      delBtn.disabled = false;
+      delBtn.textContent = 'Supprimer';
+    }
+  });
   });
 
   function openDetailModal(report) {
@@ -1668,6 +1698,28 @@ AdminAuth.init().then(updateAdminUI);
     `;
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
+
+    const delBtn = document.getElementById('detailDeleteBtn');
+    if (delBtn) {
+      delBtn.style.display = AdminAuth.isAdmin ? '' : 'none';
+      delBtn.disabled = false;
+      delBtn.textContent = 'Supprimer';
+      delBtn.onclick = async () => {
+        if (!confirm('Supprimer definitivement ce signalement ? Cette action est irreversible.')) return;
+        delBtn.disabled = true;
+        delBtn.textContent = 'Suppression...';
+        try {
+          await Store.remove(report.id);
+          window.__allReports = (window.__allReports || []).filter(r => r.id !== report.id);
+          renderTickets(window.__allReports);
+          document.getElementById('detailModal').classList.remove('show');
+        } catch (err) {
+          alert("Impossible de supprimer ce signalement. Verifiez votre connexion.");
+          delBtn.disabled = false;
+          delBtn.textContent = 'Supprimer';
+        }
+      };
+    }
     if (isTraite) {
       markBtn.style.display = 'none';
     } else {
