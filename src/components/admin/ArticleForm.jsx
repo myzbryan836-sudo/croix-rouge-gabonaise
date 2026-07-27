@@ -1,14 +1,8 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, X, Upload, FileText, Tag as TagIcon, Eye, Copy, Film } from 'lucide-react'
 import { supabase } from '../../supabase/config'
+import { CATEGORIES, categorieLabel } from '../../utils/articleCategories'
 
-const CATEGORIES = [
-  { value: 'article', label: 'Article' },
-  { value: 'communique', label: 'Communiqué' },
-  { value: 'rapport', label: 'Rapport' },
-  { value: 'publication', label: 'Publication' },
-  { value: 'evenement', label: 'Événement' },
-]
 
 const emptyArticle = () => ({
   titre: '',
@@ -23,7 +17,6 @@ const emptyArticle = () => ({
   tags: [],
 })
 
-const categorieLabel = (value) => CATEGORIES.find((c) => c.value === value)?.label || value || '—'
 
 export default function ArticleForm({ data }) {
   const [editing, setEditing] = useState(null)

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Share2, Link as LinkIcon } from 'lucide-react'
+import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film } from 'lucide-react'
 import { supabase } from '../supabase/config'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
+import { categorieLabel } from '../utils/articleCategories'
 
 function toDate(d) {
   if (!d) return new Date()
@@ -47,6 +48,8 @@ export default function ArticleDetail() {
     )
   }
 
+  const shareUrl = window.location.href
+
   return (
     <article className="pt-28 pb-20">
       <div className="max-w-3xl mx-auto px-5 md:px-8">
@@ -54,10 +57,11 @@ export default function ArticleDetail() {
           <ArrowLeft size={16} /> Retour
         </button>
 
-        <span className="eyebrow">{article.categorie}</span>
+        <span className="eyebrow">{categorieLabel(article.categorie)}</span>
         <h1 className="font-display uppercase font-extrabold text-3xl md:text-5xl mt-2 mb-4 leading-tight">{article.titre}</h1>
         <p className="text-sm text-cr-dark/50 mb-8">
           {toDate(article.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          {article.auteur ? ` · ${article.auteur}` : ''}
         </p>
 
         {article.image_url && (
@@ -70,10 +74,48 @@ export default function ArticleDetail() {
           {article.contenu}
         </div>
 
-        <div className="flex items-center gap-3 pt-6 border-t border-cr-dark/10">
+        {(article.galerie || []).length > 0 && (
+          <div className="mb-10">
+            <h3 className="font-display uppercase font-bold text-sm mb-3 text-cr-dark/60">Galerie</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {article.galerie.map((m, i) => (
+                <div key={i} className="rounded-xl overflow-hidden bg-black aspect-square">
+                  {m.type === 'video' ? (
+                    <video src={m.url} controls className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={m.url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {article.pdf_url && (
+          <a href={article.pdf_url} target="_blank" rel="noreferrer"
+            className="flex items-center gap-2 text-sm font-semibold text-cr-red mb-8 w-fit">
+            <FileText size={18} /> Télécharger le document PDF
+          </a>
+        )}
+
+        {(article.tags || []).length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-8">
+            {article.tags.map((t) => (
+              <span key={t} className="text-xs bg-cr-gray px-3 py-1 rounded-full text-cr-dark/60">{t}</span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-cr-dark/10">
           <button onClick={share} className="btn-outline">
             {copied ? <><LinkIcon size={16} /> Lien copié</> : <><Share2 size={16} /> Partager</>}
           </button>
+          <a target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-cr-gray text-xs font-semibold"
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}>Facebook</a>
+          <a target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-cr-gray text-xs font-semibold"
+            href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(article.titre)}`}>X (Twitter)</a>
+          <a target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-cr-gray text-xs font-semibold"
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(article.titre + ' ' + shareUrl)}`}>WhatsApp</a>
         </div>
       </div>
     </article>

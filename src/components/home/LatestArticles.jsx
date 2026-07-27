@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
+import { categorieLabel } from '../../utils/articleCategories'
 
 export default function LatestArticles() {
   const { data } = useSupabaseCollection('articles', { statut: 'publie', orderByField: 'date', orderDirection: 'desc' })
@@ -31,7 +32,7 @@ export default function LatestArticles() {
                 <div className="h-52 rounded-2xl overflow-hidden mb-4">
                   <img src={a.image_url} alt={a.titre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
-                <span className="eyebrow">{a.categorie}</span>
+                <span className="eyebrow">{categorieLabel(a.categorie)}</span>
                 <h3 className="font-display uppercase font-bold text-lg mt-2 mb-1">{a.titre}</h3>
                 <p className="text-sm text-cr-dark/60 line-clamp-2">{a.extrait}</p>
               </Link>
