@@ -1664,6 +1664,7 @@ AdminAuth.init().then(updateAdminUI);
       <p><strong>Niveau d'urgence :</strong> ${escapeHtml(report.level || '-')}</p>
       <p><strong>Statut :</strong> ${isTraite ? 'Traite' : 'Nouveau'}</p>
       <p><strong>Description :</strong><br>${escapeHtml(report.description || '-')}</p>
+      ${(report.media && report.media.length) ? ('<p><strong>Photos / videos :</strong></p><div class="media-grid">' + report.media.map(m => m.type === 'video' ? ('<div class="media-thumb"><video src="' + m.dataUrl + '" controls></video></div>') : ('<div class="media-thumb"><img src="' + m.dataUrl + '" alt="media"></div>')).join('') + '</div>') : ''}
     `;
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
