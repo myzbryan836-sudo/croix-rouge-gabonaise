@@ -630,6 +630,19 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="detailModalTitle">Détail du signalement</h2>
+        <button class="modal-close" id="closeDetail">✕</button>
+      </div>
+      <div id="detailModalBody" class="modal-text"></div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="detailMarkTreatedBtn" style="display:none;">Marquer comme traité</button>
+      </div>
+    </div>
+  </div>
+
   <div class="tabs">
     <div class="tab active" data-tab="form">Signaler</div>
     <div class="tab" data-tab="retour">Retour d'info</div>
@@ -1575,6 +1588,7 @@ AdminAuth.init().then(updateAdminUI);
           <div class="ticket-desc">${escapeHtml(r.description || '')}</div>
           <div class="ticket-needs">${needsHtml}</div>
           <div class="ticket-actions">
+            <button type="button" class="modal-btn secondary voir-detail-btn" style="flex:none;padding:6px 12px;font-size:12px;" data-id="${escapeHtml(r.id)}">Voir detail</button>
             ${isTraite
               ? `<span class="status-badge traite">✓ Traité</span>`
               : `<span class="status-badge nouveau">Nouveau</span><button type="button" class="mark-treated-btn" data-id="${escapeHtml(r.id)}">Marquer comme traité</button>`}
@@ -1608,6 +1622,69 @@ AdminAuth.init().then(updateAdminUI);
     div.textContent = str;
     return div.innerHTML;
   }
+
+  document.getElementById('ticketsList').addEventListener('click', (e) => {
+    const detailBtn = e.target.closest('.voir-detail-btn');
+    if (!detailBtn) return;
+    const id = detailBtn.dataset.id;
+    const report = (window.__allReports || []).find(r => r.id === id);
+    if (!report) return;
+    openDetailModal(report);
+  });
+
+  function openDetailModal(report) {
+    const date = new Date(report.timestamp);
+    const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' a ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const geoStr = report.geo ? `${report.geo.lat}, ${report.geo.lng}` : 'non capturee';
+    const needsStr = (report.needs || []).join(', ') || 'Aucun';
+    const isTraite = report.status === 'traite';
+
+    document.getElementById('detailModalTitle').textContent = (report.ref || '') + ' - ' + (report.eventType || 'Evenement');
+    document.getElementById('detailModalBody').innerHTML = `
+      <p><strong>Date :</strong> ${escapeHtml(dateStr)}</p>
+      <p><strong>Volontaire :</strong> ${escapeHtml(report.volunteer || '-')}</p>
+      <p><strong>Brigade / Zone :</strong> ${escapeHtml(report.brigade || '-')}</p>
+      <p><strong>Localisation :</strong> ${escapeHtml(report.location || '-')}</p>
+      <p><strong>GPS :</strong> ${escapeHtml(geoStr)}</p>
+      <p><strong>Personnes affectees :</strong> ${escapeHtml(report.affected ? String(report.affected) : '-')}</p>
+      <p><strong>Besoins :</strong> ${escapeHtml(needsStr)}</p>
+      <p><strong>Niveau d'urgence :</strong> ${escapeHtml(report.level || '-')}</p>
+      <p><strong>Statut :</strong> ${isTraite ? 'Traite' : 'Nouveau'}</p>
+      <p><strong>Description :</strong><br>${escapeHtml(report.description || '-')}</p>
+    `;
+
+    const markBtn = document.getElementById('detailMarkTreatedBtn');
+    if (isTraite) {
+      markBtn.style.display = 'none';
+    } else {
+      markBtn.style.display = '';
+      markBtn.disabled = false;
+      markBtn.textContent = 'Marquer comme traite';
+      markBtn.onclick = async () => {
+        markBtn.disabled = true;
+        markBtn.textContent = 'Mise a jour...';
+        try {
+          report.status = 'traite';
+          await Store.add(report);
+          renderTickets(window.__allReports);
+          document.getElementById('detailModal').classList.remove('show');
+        } catch (err) {
+          alert("Impossible de mettre a jour ce signalement. Verifiez votre connexion.");
+          markBtn.disabled = false;
+          markBtn.textContent = 'Marquer comme traite';
+        }
+      };
+    }
+
+    document.getElementById('detailModal').classList.add('show');
+  }
+
+  document.getElementById('closeDetail').addEventListener('click', () => {
+    document.getElementById('detailModal').classList.remove('show');
+  });
+  document.getElementById('detailModal').addEventListener('click', (e) => {
+    if (e.target.id === 'detailModal') document.getElementById('detailModal').classList.remove('show');
+  });
 
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
   // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
