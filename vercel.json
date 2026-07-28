@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/carnet-terrain/(.*)", "destination": "/carnet-terrain/$1" },
+    { "source": "/carnet-terrain.apk", "destination": "/carnet-terrain.apk" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
