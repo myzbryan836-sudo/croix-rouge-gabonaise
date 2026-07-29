@@ -3,9 +3,11 @@
 const PHONE = '24174162213'
 
 export default function WhatsAppButton() {
+  const url = 'https://wa.me/' + PHONE
+
   return (
     
-      href={`https://wa.me/${PHONE}`}
+      href={url}
       target="_blank"
       rel="noreferrer"
       aria-label="Contacter sur WhatsApp"
