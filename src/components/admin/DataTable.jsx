@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Upload } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Upload, Eye } from 'lucide-react'
 import { supabase } from '../../supabase/config'
 import GpsPicker from './GpsPicker'
 
@@ -9,6 +9,7 @@ import GpsPicker from './GpsPicker'
  */
 export default function DataTable({ collectionName, fields, data, titleField = 'titre' }) {
   const [editing, setEditing] = useState(null) // null = fermé, {} = création, {...} = édition
+  const [viewing, setViewing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -103,8 +104,9 @@ export default function DataTable({ collectionName, fields, data, titleField = '
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-cr-gray"><Pencil size={15} /></button>
-                    <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded hover:bg-red-50 text-cr-red"><Trash2 size={15} /></button>
+                    <button onClick={() => setViewing(item)} className="p-1.5 rounded hover:bg-cr-gray text-cr-dark/70" title="Consulter"><Eye size={15} /></button>
+                    <button onClick={() => openEdit(item)} className="p-1.5 rounded hover:bg-cr-gray" title="Modifier"><Pencil size={15} /></button>
+                    <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded hover:bg-red-50 text-cr-red" title="Supprimer"><Trash2 size={15} /></button>
                   </div>
                 </td>
               </tr>
@@ -166,6 +168,49 @@ export default function DataTable({ collectionName, fields, data, titleField = '
             <button onClick={handleSave} disabled={saving} className="btn-primary w-full mt-5 disabled:opacity-60">
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {viewing && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setViewing(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-display uppercase font-bold text-lg">Détails</h3>
+              <button onClick={() => setViewing(null)}><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              {fields.map((f) => (
+                <div key={f.name}>
+                  <span className="text-xs font-semibold text-cr-dark/50 uppercase block mb-0.5">{f.label}</span>
+                  {f.type === 'image' ? (
+                    viewing[f.name] ? (
+                      <img src={viewing[f.name]} alt="" className="h-32 rounded-lg object-cover" />
+                    ) : (
+                      <p className="text-sm text-cr-dark/40">—</p>
+                    )
+                  ) : f.type === 'gps' ? (
+                    <p className="text-sm text-cr-dark">
+                      {viewing[f.latField] && viewing[f.lngField]
+                        ? `${viewing[f.latField]}, ${viewing[f.lngField]}`
+                        : '—'}
+                    </p>
+                  ) : f.type === 'list' ? (
+                    <p className="text-sm text-cr-dark whitespace-pre-wrap">{(viewing[f.name] || []).join(', ') || '—'}</p>
+                  ) : (
+                    <p className="text-sm text-cr-dark whitespace-pre-wrap">{viewing[f.name] || '—'}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => { setViewing(null); openEdit(viewing) }} className="flex-1 btn-primary !py-2.5">
+                Modifier
+              </button>
+              <button onClick={() => setViewing(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-cr-dark/15">
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
