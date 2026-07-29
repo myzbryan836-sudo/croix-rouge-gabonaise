@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+﻿import { motion } from 'framer-motion'
 import { Quote } from 'lucide-react'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
 
@@ -6,8 +6,8 @@ export default function TestimonialSection() {
   const { data } = useSupabaseCollection('contenus')
   const t = data.find((c) => c.cle === 'temoignage_benevole')
 
-  const nom = t?.titre || 'Aïsha N.'
-  const citation = t?.valeur || "Devenir bénévole à la Croix-Rouge Gabonaise a changé ma façon de voir la solidarité. Chaque intervention nous rapproche un peu plus des communautés que nous servons."
+  const nom = t?.titre || 'AÃ¯sha N.'
+  const citation = t?.valeur || "Devenir bÃ©nÃ©vole Ã  la Croix-Rouge Gabonaise a changÃ© ma faÃ§on de voir la solidaritÃ©. Chaque intervention nous rapproche un peu plus des communautÃ©s que nous servons."
 
   return (
     <section className="bg-cr-gray py-16 md:py-24">
@@ -21,7 +21,7 @@ export default function TestimonialSection() {
             </div>
             <div className="text-left">
               <p className="font-semibold text-sm">{nom}</p>
-              <p className="text-xs text-cr-dark/50 uppercase tracking-wide">Bénévole terrain</p>
+              <p className="text-xs text-cr-dark/50 uppercase tracking-wide">BÃ©nÃ©vole terrain</p>
             </div>
           </div>
         </motion.div>
@@ -29,3 +29,4 @@ export default function TestimonialSection() {
     </section>
   )
 }
+

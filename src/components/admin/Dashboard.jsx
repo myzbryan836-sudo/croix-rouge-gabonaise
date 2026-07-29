@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+﻿import { motion } from 'framer-motion'
 import { Newspaper, Flag, Heart, HandHeart, Megaphone, AlertTriangle } from 'lucide-react'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
 
@@ -14,11 +14,11 @@ export default function Dashboard() {
   const nouveauxSignalements = signalements.filter((s) => s.statut === 'nouveau').length
 
   const cards = [
-    { label: 'Articles publiés', value: articles.filter((a) => a.statut === 'publie').length, icon: Newspaper },
+    { label: 'Articles publiÃ©s', value: articles.filter((a) => a.statut === 'publie').length, icon: Newspaper },
     { label: 'Missions actives', value: missions.filter((m) => m.statut === 'publie').length, icon: Flag },
     { label: 'Annonces', value: annonces.length, icon: Megaphone },
-    { label: 'Total dons complétés', value: `${totalDons.toLocaleString('fr-FR')} F`, icon: Heart },
-    { label: 'Candidatures bénévoles', value: candidatures.length, icon: HandHeart },
+    { label: 'Total dons complÃ©tÃ©s', value: `${totalDons.toLocaleString('fr-FR')} F`, icon: Heart },
+    { label: 'Candidatures bÃ©nÃ©voles', value: candidatures.length, icon: HandHeart },
     { label: 'Signalements nouveaux', value: nouveauxSignalements, icon: AlertTriangle },
   ]
 
@@ -35,3 +35,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

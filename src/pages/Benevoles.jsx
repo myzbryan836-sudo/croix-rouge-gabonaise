@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, HandHeart, Download } from 'lucide-react'
 import { supabase } from '../supabase/config'
@@ -40,7 +40,7 @@ export default function Benevoles() {
       setSent(true)
       setForm(initialForm)
     } catch (err) {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      setError('Une erreur est survenue. Veuillez rÃ©essayer.')
     } finally {
       setSending(false)
     }
@@ -50,16 +50,16 @@ export default function Benevoles() {
     <div className="pt-28 pb-24">
       <div className="max-w-2xl mx-auto px-5 md:px-8">
         <span className="eyebrow mb-2 block">Rejoignez-nous</span>
-        <h1 className="section-title mb-4">Devenir bénévole</h1>
+        <h1 className="section-title mb-4">Devenir bÃ©nÃ©vole</h1>
         <p className="text-cr-dark/60 mb-6">
-          Rejoignez un réseau engagé de bénévoles présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
+          Rejoignez un rÃ©seau engagÃ© de bÃ©nÃ©voles prÃ©sents dans toutes les provinces du Gabon. Formation assurÃ©e, encadrement de terrain.
         </p>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <p className="font-display uppercase font-extrabold text-sm mb-1">App « Carnet de terrain »</p>
+            <p className="font-display uppercase font-extrabold text-sm mb-1">App Â« Carnet de terrain Â»</p>
             <p className="text-cr-dark/60 text-sm">
-              Application dédiée aux volontaires pour remonter les signalements depuis le terrain, même sans connexion internet.
+              Application dÃ©diÃ©e aux volontaires pour remonter les signalements depuis le terrain, mÃªme sans connexion internet.
             </p>
           </div>
 
@@ -77,8 +77,8 @@ export default function Benevoles() {
           {sent ? (
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-10 text-center shadow-sm">
               <CheckCircle2 className="mx-auto text-green-600 mb-4" size={56} />
-              <h2 className="font-display uppercase font-extrabold text-2xl mb-2">Candidature envoyée</h2>
-              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre équipe des ressources bénévoles vous recontactera très prochainement.</p>
+              <h2 className="font-display uppercase font-extrabold text-2xl mb-2">Candidature envoyÃ©e</h2>
+              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre Ã©quipe des ressources bÃ©nÃ©voles vous recontactera trÃ¨s prochainement.</p>
             </motion.div>
           ) : (
             <motion.form key="form" onSubmit={handleSubmit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
@@ -91,12 +91,12 @@ export default function Benevoles() {
               <div className="grid md:grid-cols-2 gap-3">
                 <input name="email" type="email" value={form.email} onChange={handleChange} required placeholder="Email"
                   className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
-                <input name="telephone" value={form.telephone} onChange={handleChange} required placeholder="Téléphone"
+                <input name="telephone" value={form.telephone} onChange={handleChange} required placeholder="TÃ©lÃ©phone"
                   className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
               </div>
 
               <div>
-                <p className="font-semibold text-sm mb-2">Disponibilités</p>
+                <p className="font-semibold text-sm mb-2">DisponibilitÃ©s</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {DISPONIBILITES.map((d) => (
                     <button type="button" key={d.value} onClick={() => toggleDispo(d.value)}
@@ -107,7 +107,7 @@ export default function Benevoles() {
                 </div>
               </div>
 
-              <textarea name="competences" value={form.competences} onChange={handleChange} rows={2} placeholder="Compétences (premiers secours, logistique, communication...)"
+              <textarea name="competences" value={form.competences} onChange={handleChange} rows={2} placeholder="CompÃ©tences (premiers secours, logistique, communication...)"
                 className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red resize-none" />
               <textarea name="motivation" value={form.motivation} onChange={handleChange} required rows={3} placeholder="Votre motivation"
                 className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red resize-none" />
@@ -124,4 +124,5 @@ export default function Benevoles() {
     </div>
   )
 }
+
 

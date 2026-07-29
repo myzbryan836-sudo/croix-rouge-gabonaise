@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Facebook, Instagram, Youtube, Linkedin, Twitter, Music2, Phone, Mail, MapPin } from 'lucide-react'
 import Logo from '../shared/Logo'
@@ -30,7 +30,7 @@ export default function Footer() {
         <div>
           <Logo light />
           <p className="text-sm text-white/60 mt-4 leading-relaxed">
-            Mouvement humanitaire national œuvrant pour secourir, soigner, former et accompagner les communautés vulnérables partout au Gabon.
+            Mouvement humanitaire national Å“uvrant pour secourir, soigner, former et accompagner les communautÃ©s vulnÃ©rables partout au Gabon.
           </p>
           <div className="flex gap-3 mt-5">
             {actifs.length > 0 ? (
@@ -58,9 +58,9 @@ export default function Footer() {
           <ul className="space-y-2 text-sm text-white/70">
             <li><Link to="/missions" className="hover:text-white">Nos missions</Link></li>
             <li><Link to="/qui-sommes-nous" className="hover:text-white">Qui sommes-nous</Link></li>
-            <li><Link to="/actualites" className="hover:text-white">Actualités</Link></li>
+            <li><Link to="/actualites" className="hover:text-white">ActualitÃ©s</Link></li>
             <li><Link to="/nos-ressources" className="hover:text-white">Nos ressources</Link></li>
-            <li><Link to="/benevoles" className="hover:text-white">Devenir bénévole</Link></li>
+            <li><Link to="/benevoles" className="hover:text-white">Devenir bÃ©nÃ©vole</Link></li>
             <li><Link to="/dons" className="hover:text-white">Faire un don</Link></li>
             <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
           </ul>
@@ -69,14 +69,14 @@ export default function Footer() {
         <div>
           <h4 className="eyebrow mb-4">Contact</h4>
           <ul className="space-y-3 text-sm text-white/70">
-            <li className="flex items-center gap-2"><Phone size={15} /> {contact?.numero_vert || 'Information en cours de mise à jour'}</li>
-            <li className="flex items-center gap-2"><Mail size={15} /> {contact?.email || 'Information en cours de mise à jour'}</li>
-            <li className="flex items-center gap-2"><MapPin size={15} /> {contact?.adresse || 'Information en cours de mise à jour'}</li>
+            <li className="flex items-center gap-2"><Phone size={15} /> {contact?.numero_vert || 'Information en cours de mise Ã  jour'}</li>
+            <li className="flex items-center gap-2"><Mail size={15} /> {contact?.email || 'Information en cours de mise Ã  jour'}</li>
+            <li className="flex items-center gap-2"><MapPin size={15} /> {contact?.adresse || 'Information en cours de mise Ã  jour'}</li>
           </ul>
         </div>
 
         <div>
-          <h4 className="eyebrow mb-4">Paiements acceptés</h4>
+          <h4 className="eyebrow mb-4">Paiements acceptÃ©s</h4>
           <div className="flex flex-wrap gap-2 text-xs">
             {['Moov Money', 'Airtel Money', 'Visa', 'Mastercard'].map((p) => (
               <span key={p} className="px-3 py-1.5 rounded-full bg-white/10 text-white/80">{p}</span>
@@ -86,9 +86,10 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto px-5 md:px-8 mt-12 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-col md:flex-row justify-between gap-2">
-        <span>© {new Date().getFullYear()} Croix-Rouge Gabonaise. Tous droits réservés.</span>
+        <span>Â© {new Date().getFullYear()} Croix-Rouge Gabonaise. Tous droits rÃ©servÃ©s.</span>
         <span>Membre du Mouvement international de la Croix-Rouge et du Croissant-Rouge</span>
       </div>
     </footer>
   )
 }
+

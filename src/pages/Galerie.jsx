@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, PlayCircle, Images } from 'lucide-react'
 import { useSupabaseCollection } from '../hooks/useSupabaseCollection'
@@ -9,8 +9,8 @@ const CATEGORIES = [
   { value: 'interventions', label: 'Interventions' },
   { value: 'campagnes', label: 'Campagnes' },
   { value: 'formations', label: 'Formations' },
-  { value: 'benevoles', label: 'Bénévoles' },
-  { value: 'evenements', label: 'Événements' },
+  { value: 'benevoles', label: 'BÃ©nÃ©voles' },
+  { value: 'evenements', label: 'Ã‰vÃ©nements' },
 ]
 
 export default function Galerie() {
@@ -29,7 +29,7 @@ export default function Galerie() {
         <span className="eyebrow mb-2 block">En images</span>
         <h1 className="section-title mb-4">Galerie</h1>
         <p className="text-cr-dark/60 max-w-2xl mb-8">
-          Interventions, campagnes humanitaires, formations, activités des bénévoles et événements de la Croix-Rouge Gabonaise.
+          Interventions, campagnes humanitaires, formations, activitÃ©s des bÃ©nÃ©voles et Ã©vÃ©nements de la Croix-Rouge Gabonaise.
         </p>
 
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-8">
@@ -62,7 +62,7 @@ export default function Galerie() {
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 shadow-sm border border-cr-dark/5 text-center">
             <Images className="text-cr-red mx-auto mb-4" size={32} />
-            <p className="text-cr-dark/40">Information en cours de mise à jour.</p>
+            <p className="text-cr-dark/40">Information en cours de mise Ã  jour.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -117,3 +117,4 @@ export default function Galerie() {
     </div>
   )
 }
+

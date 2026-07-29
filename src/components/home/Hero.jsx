@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Heart } from 'lucide-react'
@@ -15,7 +15,7 @@ export default function Hero() {
   const selected = custom ? Number(custom) : amount
   const customBg = contenus.find((c) => c.cle === 'hero_background_image')?.valeur
   // Tant que le contenu n'a pas fini de charger, on n'affiche aucune image de
-  // secours : ça évite qu'une ancienne image (ou l'image par défaut) apparaisse
+  // secours : Ã§a Ã©vite qu'une ancienne image (ou l'image par dÃ©faut) apparaisse
   // une fraction de seconde avant que la bonne image ne s'affiche.
   const heroBg = customBg || (loading ? null : DEFAULT_BG)
 
@@ -42,11 +42,11 @@ export default function Hero() {
             Chaque geste<br />sauve une vie
           </h1>
           <p className="text-white/80 max-w-md text-base md:text-lg mb-8">
-            Urgences, santé, action sociale et formation : à travers tout le Gabon, nos équipes et bénévoles agissent chaque jour aux côtés des communautés vulnérables.
+            Urgences, santÃ©, action sociale et formation : Ã  travers tout le Gabon, nos Ã©quipes et bÃ©nÃ©voles agissent chaque jour aux cÃ´tÃ©s des communautÃ©s vulnÃ©rables.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link to="/dons" className="btn-primary">Faire un don <Heart size={16} /></Link>
-            <Link to="/missions" className="btn-outline-light">Découvrir nos missions <ArrowRight size={16} /></Link>
+            <Link to="/missions" className="btn-outline-light">DÃ©couvrir nos missions <ArrowRight size={16} /></Link>
           </div>
         </motion.div>
 
@@ -57,7 +57,7 @@ export default function Hero() {
           className="bg-white/95 backdrop-blur rounded-2xl p-6 shadow-2xl w-full"
         >
           <p className="font-display uppercase font-extrabold text-lg mb-1">Don rapide</p>
-          <p className="text-sm text-cr-dark/60 mb-5">Votre soutien agit immédiatement sur le terrain.</p>
+          <p className="text-sm text-cr-dark/60 mb-5">Votre soutien agit immÃ©diatement sur le terrain.</p>
           <div className="grid grid-cols-3 gap-2 mb-3">
             {AMOUNTS.map((a) => (
               <button
@@ -75,7 +75,7 @@ export default function Hero() {
           </div>
           <input
             type="number"
-            placeholder="Montant personnalisé (FCFA)"
+            placeholder="Montant personnalisÃ© (FCFA)"
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
             className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-cr-red"
@@ -91,3 +91,4 @@ export default function Hero() {
     </section>
   )
 }
+

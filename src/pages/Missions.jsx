@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, HeartPulse, Users, GraduationCap, X, Heart, HandHeart, MapPinned } from 'lucide-react'
 import { Link, useSearchParams, useLocation } from 'react-router-dom'
@@ -9,10 +9,10 @@ const ICONS = { urgence: AlertTriangle, sante: HeartPulse, social: Users, format
 const FILTERS = [
   { value: 'tous', label: 'Toutes' },
   { value: 'urgence', label: 'Urgences' },
-  { value: 'sante', label: 'Santé' },
+  { value: 'sante', label: 'SantÃ©' },
   { value: 'social', label: 'Social' },
   { value: 'formation', label: 'Formation' },
-  { value: 'prevention', label: 'Prévention' },
+  { value: 'prevention', label: 'PrÃ©vention' },
 ]
 
 export default function Missions() {
@@ -39,7 +39,7 @@ export default function Missions() {
         <span className="eyebrow mb-2 block">Ce que nous faisons</span>
         <h1 className="section-title mb-4">Nos missions</h1>
         <p className="text-cr-dark/60 max-w-2xl mb-6">
-          Réparties en quatre grands domaines d'intervention, nos actions couvrent l'ensemble du territoire gabonais.
+          RÃ©parties en quatre grands domaines d'intervention, nos actions couvrent l'ensemble du territoire gabonais.
         </p>
         <Link to="/carte-interventions" className="inline-flex items-center gap-2 text-sm font-bold uppercase text-cr-red hover:underline mb-12">
           <MapPinned size={16} /> Voir la carte de nos interventions
@@ -115,7 +115,7 @@ export default function Missions() {
             <Heart size={26} />
           </Link>
           <Link to="/benevoles" className="bg-cr-dark text-white rounded-2xl p-8 flex items-center justify-between hover:opacity-95">
-            <span className="font-display uppercase font-bold text-xl">Devenir bénévole</span>
+            <span className="font-display uppercase font-bold text-xl">Devenir bÃ©nÃ©vole</span>
             <HandHeart size={26} />
           </Link>
         </div>
@@ -141,3 +141,4 @@ export default function Missions() {
     </div>
   )
 }
+
