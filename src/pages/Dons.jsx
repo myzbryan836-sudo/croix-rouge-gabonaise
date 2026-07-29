@@ -33,6 +33,16 @@ function CopyLine({ label, value }) {
   )
 }
 
+function QrBlock({ url }) {
+  if (!url) return null
+  return (
+    <div className="flex flex-col items-center pt-3">
+      <img src={url} alt="QR code de paiement" className="w-32 h-32 object-contain border border-cr-dark/10 rounded-lg bg-white p-1" />
+      <p className="text-[11px] text-cr-dark/40 mt-1">Scannez pour payer</p>
+    </div>
+  )
+}
+
 export default function Dons() {
   const [params] = useSearchParams()
   const initialAmount = Number(params.get('montant')) || 10000
@@ -57,10 +67,6 @@ export default function Dons() {
     setSending(true)
     setError('')
     try {
-      // NOTE: l'intégration réelle des paiements (Stripe PaymentIntent, Moov Money,
-      // Airtel Money) doit être effectuée via une fonction serveur sécurisée
-      // (ex. Supabase Edge Function). Ici, la demande de don est enregistrée en
-      // `en_attente`, puis mise à jour par le webhook du fournisseur de paiement.
       const { error: insertError } = await supabase.from('dons').insert({
         montant: finalAmount,
         type,
@@ -149,18 +155,20 @@ export default function Dons() {
                   ))}
                 </div>
 
-                {method === 'moov_money' && (paiement.moov_money_numero || paiement.moov_money_titulaire) && (
+                {method === 'moov_money' && (paiement.moov_money_numero || paiement.moov_money_titulaire || paiement.moov_money_qr) && (
                   <div className="mt-3 bg-cr-gray rounded-lg px-4 py-2 divide-y divide-cr-dark/10">
                     <CopyLine label="Numéro Moov Money" value={paiement.moov_money_numero} />
                     <CopyLine label="Titulaire" value={paiement.moov_money_titulaire} />
+                    <QrBlock url={paiement.moov_money_qr} />
                     <p className="text-xs text-cr-dark/50 pt-2">Envoyez le montant à ce numéro puis confirmez ci-dessous. Notre équipe validera la réception.</p>
                   </div>
                 )}
 
-                {method === 'airtel_money' && (paiement.airtel_money_numero || paiement.airtel_money_titulaire) && (
+                {method === 'airtel_money' && (paiement.airtel_money_numero || paiement.airtel_money_titulaire || paiement.airtel_money_qr) && (
                   <div className="mt-3 bg-cr-gray rounded-lg px-4 py-2 divide-y divide-cr-dark/10">
                     <CopyLine label="Numéro Airtel Money" value={paiement.airtel_money_numero} />
                     <CopyLine label="Titulaire" value={paiement.airtel_money_titulaire} />
+                    <QrBlock url={paiement.airtel_money_qr} />
                     <p className="text-xs text-cr-dark/50 pt-2">Envoyez le montant à ce numéro puis confirmez ci-dessous. Notre équipe validera la réception.</p>
                   </div>
                 )}
@@ -171,6 +179,7 @@ export default function Dons() {
                     <CopyLine label="Titulaire du compte" value={paiement.banque_titulaire} />
                     <CopyLine label="Numéro de compte" value={paiement.banque_numero_compte} />
                     <CopyLine label="IBAN" value={paiement.banque_iban} />
+                    <QrBlock url={paiement.banque_qr} />
                     <p className="text-xs text-cr-dark/50 pt-2">
                       {paiement.instructions_carte || "Réglez ce don par carte ou virement vers ce compte depuis votre banque, puis confirmez ci-dessous. Notre équipe validera la réception."}
                     </p>
