@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Heart, User, ChevronDown } from 'lucide-react'
 import Logo from '../shared/Logo'
 import { useAuth } from '../../context/AuthContext'
+import NotificationBell from '../shared/NotificationBell'
 
 const MENU = [
   { to: '/', label: 'Accueil' },
@@ -172,6 +173,7 @@ export default function Navbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-3">
+          {user && <NotificationBell light={light} />}
           <Link to={isAdmin ? '/admin' : user ? '/' : '/connexion'} className={`p-2 rounded-full ${light ? 'text-white' : 'text-cr-dark'}`}>
             <User size={20} />
           </Link>
