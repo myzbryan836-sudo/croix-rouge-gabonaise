@@ -6,7 +6,7 @@ export default function WhatsAppButton() {
   const url = 'https://wa.me/' + PHONE
 
   return (
-    
+    <a
       href={url}
       target="_blank"
       rel="noreferrer"
