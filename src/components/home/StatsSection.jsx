@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, useInView, animate } from 'framer-motion'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
 
@@ -26,9 +26,9 @@ function Counter({ value, suffix }) {
 
 const FALLBACK = [
   { label: 'Personnes secourues', valeur: 120000, suffixe: '+', ordre: 1 },
-  { label: 'BÃ©nÃ©voles actifs', valeur: 3500, suffixe: '+', ordre: 2 },
+  { label: 'Bénévoles actifs', valeur: 3500, suffixe: '+', ordre: 2 },
   { label: 'Provinces couvertes', valeur: 9, suffixe: '', ordre: 3 },
-  { label: "AnnÃ©es d'engagement", valeur: 60, suffixe: '+', ordre: 4 },
+  { label: "Années d'engagement", valeur: 60, suffixe: '+', ordre: 4 },
 ]
 
 export default function StatsSection() {
@@ -56,4 +56,3 @@ export default function StatsSection() {
     </section>
   )
 }
-
