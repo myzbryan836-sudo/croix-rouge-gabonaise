@@ -115,7 +115,7 @@ export default function Missions() {
             <Heart size={26} />
           </Link>
           <Link to="/benevoles" className="bg-cr-dark text-white rounded-2xl p-8 flex items-center justify-between hover:opacity-95">
-            <span className="font-display uppercase font-bold text-xl">Devenir bénévole</span>
+            <span className="font-display uppercase font-bold text-xl">Devenir volontaire</span>
             <HandHeart size={26} />
           </Link>
         </div>

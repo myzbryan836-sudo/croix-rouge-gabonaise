@@ -60,7 +60,7 @@ export default function Footer() {
             <li><Link to="/qui-sommes-nous" className="hover:text-white">Qui sommes-nous</Link></li>
             <li><Link to="/actualites" className="hover:text-white">Actualités</Link></li>
             <li><Link to="/nos-ressources" className="hover:text-white">Nos ressources</Link></li>
-            <li><Link to="/benevoles" className="hover:text-white">Devenir bénévole</Link></li>
+            <li><Link to="/benevoles" className="hover:text-white">Devenir volontaire</Link></li>
             <li><Link to="/dons" className="hover:text-white">Faire un don</Link></li>
             <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
           </ul>

@@ -50,7 +50,7 @@ export default function Benevoles() {
     <div className="pt-28 pb-24">
       <div className="max-w-2xl mx-auto px-5 md:px-8">
         <span className="eyebrow mb-2 block">Rejoignez-nous</span>
-        <h1 className="section-title mb-4">Devenir bénévole</h1>
+        <h1 className="section-title mb-4">Devenir volontaire</h1>
         <p className="text-cr-dark/60 mb-6">
           Rejoignez un réseau engagé de bénévoles présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
         </p>

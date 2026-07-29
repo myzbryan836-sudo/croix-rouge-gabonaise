@@ -28,7 +28,7 @@ export default function CTASection() {
         >
           <div>
             <HandHeart size={28} className="mb-4" />
-            <h3 className="font-display uppercase font-extrabold text-2xl mb-3">Devenir bénévole</h3>
+            <h3 className="font-display uppercase font-extrabold text-2xl mb-3">Devenir volontaire</h3>
             <p className="text-white/70 text-sm">Rejoignez un réseau de milliers de bénévoles engagés partout au Gabon.</p>
           </div>
           <Link to="/benevoles" className="btn-outline-light mt-6 self-start">Je m'engage</Link>

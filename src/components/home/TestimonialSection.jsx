@@ -7,7 +7,7 @@ export default function TestimonialSection() {
   const t = data.find((c) => c.cle === 'temoignage_benevole')
 
   const nom = t?.titre || 'Aïsha N.'
-  const citation = t?.valeur || "Devenir bénévole à la Croix-Rouge Gabonaise a changé ma façon de voir la solidarité. Chaque intervention nous rapproche un peu plus des communautés que nous servons."
+  const citation = t?.valeur || "Devenir volontaire à la Croix-Rouge Gabonaise a changé ma façon de voir la solidarité. Chaque intervention nous rapproche un peu plus des communautés que nous servons."
 
   return (
     <section className="bg-cr-gray py-16 md:py-24">

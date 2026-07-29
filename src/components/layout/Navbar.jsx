@@ -42,7 +42,7 @@ const MENU = [
   },
   { to: '/partenaires', label: 'Nos partenaires' },
   { to: '/galerie', label: 'Galerie' },
-  { to: '/benevoles', label: 'Bénévolat' },
+  { to: '/benevoles', label: 'VOLONTARIAT' },
   { to: '/contact', label: 'Contact' },
 ]
 
