@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import AlertButton from '../shared/AlertButton'
+import WhatsAppButton from '../shared/WhatsAppButton'
 
 export default function Layout() {
   return (
@@ -12,6 +13,7 @@ export default function Layout() {
       </main>
       <Footer />
       <AlertButton />
+      <WhatsAppButton />
     </div>
   )
 }
