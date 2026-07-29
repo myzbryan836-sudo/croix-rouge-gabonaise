@@ -12,6 +12,7 @@ const COLUMNS = [
 const DETAIL_FIELDS = [
   { key: 'email', label: 'Email' },
   { key: 'description', label: 'Description du signalement' },
+  { key: 'media_urls', label: 'Photos / vidéos jointes', type: 'media' },
 ]
 
 export default function SignalementsTab() {

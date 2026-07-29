@@ -91,7 +91,29 @@ export default function StatusTable({ collectionName, data, columns, statuses, d
               {fullFields.map((f) => (
                 <div key={f.key}>
                   <span className="text-xs font-semibold text-cr-dark/50 uppercase block mb-0.5">{f.label}</span>
-                  <p className="text-sm text-cr-dark whitespace-pre-wrap">{formatValue(viewing[f.key])}</p>
+                  {f.type === 'media' ? (
+                    (viewing[f.key] || []).length ? (
+                      <div className="grid grid-cols-3 gap-2 mt-1">
+                        {viewing[f.key].map((url, i) => {
+                          const isVideo = /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url)
+                          return (
+                            <a key={i} href={url} target="_blank" rel="noreferrer"
+                              className="block aspect-square rounded-lg overflow-hidden bg-black">
+                              {isVideo ? (
+                                <video src={url} className="w-full h-full object-cover" />
+                              ) : (
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </a>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-cr-dark/40">Aucun fichier joint.</p>
+                    )
+                  ) : (
+                    <p className="text-sm text-cr-dark whitespace-pre-wrap">{formatValue(viewing[f.key])}</p>
+                  )}
                 </div>
               ))}
               <div>
