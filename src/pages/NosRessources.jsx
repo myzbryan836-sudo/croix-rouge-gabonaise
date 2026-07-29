@@ -17,9 +17,23 @@ function RessourceVisual({ ressource }) {
   const { categorie, fichier_url, image_url, titre } = ressource
 
   if (categorie === 'video' && fichier_url) {
+    const isFacebookLink = fichier_url.includes('facebook.com')
     return (
       <div className="relative h-48 rounded-2xl overflow-hidden mb-4 bg-cr-dark">
-        <video src={fichier_url} poster={image_url || undefined} className="w-full h-full object-cover" controls preload="metadata" />
+        {isFacebookLink ? (
+          <iframe
+            src={'https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(fichier_url) + '&show_text=false'}
+            className="w-full h-full"
+            style={{ border: 'none' }}
+            scrolling="no"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+            title={titre}
+          />
+        ) : (
+          <video src={fichier_url} poster={image_url || undefined} className="w-full h-full object-cover" controls preload="metadata" />
+        )}
       </div>
     )
   }
