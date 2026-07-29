@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
+import { Upload } from 'lucide-react'
 import { supabase } from '../../supabase/config'
 import LoadingSpinner from '../shared/LoadingSpinner'
 
@@ -6,16 +7,17 @@ const FIELDS = [
   { section: 'Moov Money' },
   { name: 'moov_money_numero', label: 'Numéro Moov Money' },
   { name: 'moov_money_titulaire', label: 'Nom du titulaire' },
-
+  { name: 'moov_money_qr', label: 'QR Code Moov Money', type: 'qr' },
   { section: 'Airtel Money' },
   { name: 'airtel_money_numero', label: 'Numéro Airtel Money' },
   { name: 'airtel_money_titulaire', label: 'Nom du titulaire' },
-
+  { name: 'airtel_money_qr', label: 'QR Code Airtel Money', type: 'qr' },
   { section: 'Compte bancaire (virement / carte)' },
   { name: 'banque_nom', label: 'Nom de la banque' },
   { name: 'banque_titulaire', label: 'Titulaire du compte' },
   { name: 'banque_numero_compte', label: 'Numéro de compte' },
   { name: 'banque_iban', label: 'IBAN' },
+  { name: 'banque_qr', label: 'QR Code paiement (carte / virement)', type: 'qr' },
   { name: 'instructions_carte', label: 'Instructions affichées aux donateurs (paiement par carte)', type: 'textarea' },
 ]
 
@@ -24,6 +26,7 @@ export default function PaiementTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploadingQr, setUploadingQr] = useState({})
 
   useEffect(() => {
     supabase.from('moyens_paiement').select('*').eq('id', 1).maybeSingle().then(({ data }) => {
@@ -35,6 +38,22 @@ export default function PaiementTab() {
   const handleChange = (name, value) => {
     setSaved(false)
     setForm((f) => ({ ...f, [name]: value }))
+  }
+
+  const handleQrUpload = async (name, file) => {
+    if (!file) return
+    setUploadingQr((u) => ({ ...u, [name]: true }))
+    try {
+      const path = `paiement/${name}_${Date.now()}_${file.name}`
+      const { error } = await supabase.storage.from('media').upload(path, file)
+      if (error) throw error
+      const url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl
+      handleChange(name, url)
+    } catch (err) {
+      alert("Erreur lors de l'envoi du QR code : " + err.message)
+    } finally {
+      setUploadingQr((u) => ({ ...u, [name]: false }))
+    }
   }
 
   const handleSave = async () => {
@@ -64,6 +83,20 @@ export default function PaiementTab() {
         {FIELDS.map((f, i) =>
           f.section ? (
             <p key={`s-${i}`} className="font-display uppercase font-bold text-xs text-cr-red pt-3 first:pt-0">{f.section}</p>
+          ) : f.type === 'qr' ? (
+            <div key={f.name}>
+              <label className="text-xs font-semibold text-cr-dark/60 mb-1 block">{f.label}</label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-cr-red cursor-pointer w-fit">
+                  <Upload size={14} /> {uploadingQr[f.name] ? 'Envoi...' : 'Téléverser un QR code'}
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={(e) => handleQrUpload(f.name, e.target.files[0])} />
+                </label>
+                {form[f.name] && (
+                  <img src={form[f.name]} alt="" className="h-16 w-16 object-contain border border-cr-dark/10 rounded-lg" />
+                )}
+              </div>
+            </div>
           ) : (
             <div key={f.name}>
               <label className="text-xs font-semibold text-cr-dark/60 mb-1 block">{f.label}</label>
