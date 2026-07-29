@@ -16,6 +16,7 @@ import Contact from './pages/Contact'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import Admin from './pages/Admin'
+import Register from './pages/Register'
 
 export default function App() {
   return (
@@ -37,7 +38,9 @@ export default function App() {
 
       <Route path="/connexion" element={<Login />} />
       <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
-
+<Route path="/connexion" element={<Login />} />
+      <Route path="/inscription" element={<Register />} />
+      <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
       <Route
         path="/admin"
         element={
