@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film } from 'lucide-react'
 import { supabase } from '../supabase/config'
@@ -43,7 +43,7 @@ export default function ArticleDetail() {
     return (
       <div className="pt-32 pb-20 text-center">
         <p className="text-cr-dark/60 mb-4">Article introuvable.</p>
-        <Link to="/actualites" className="btn-outline">Retour aux actualités</Link>
+        <Link to="/actualites" className="btn-outline">Retour aux actualitÃ©s</Link>
       </div>
     )
   }
@@ -61,7 +61,7 @@ export default function ArticleDetail() {
         <h1 className="font-display uppercase font-extrabold text-3xl md:text-5xl mt-2 mb-4 leading-tight">{article.titre}</h1>
         <p className="text-sm text-cr-dark/50 mb-8">
           {toDate(article.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-          {article.auteur ? ` · ${article.auteur}` : ''}
+          {article.auteur ? ` Â· ${article.auteur}` : ''}
         </p>
 
         {article.image_url && (
@@ -71,7 +71,7 @@ export default function ArticleDetail() {
         )}
 
         <div className="prose max-w-none text-cr-dark/80 leading-relaxed whitespace-pre-line mb-10">
-          {article.contenu}
+          {article.extrait}
         </div>
 
         {(article.galerie || []).length > 0 && (
@@ -94,7 +94,7 @@ export default function ArticleDetail() {
         {article.pdf_url && (
           <a href={article.pdf_url} target="_blank" rel="noreferrer"
             className="flex items-center gap-2 text-sm font-semibold text-cr-red mb-8 w-fit">
-            <FileText size={18} /> Télécharger le document PDF
+            <FileText size={18} /> TÃ©lÃ©charger le document PDF
           </a>
         )}
 
@@ -108,7 +108,7 @@ export default function ArticleDetail() {
 
         <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-cr-dark/10">
           <button onClick={share} className="btn-outline">
-            {copied ? <><LinkIcon size={16} /> Lien copié</> : <><Share2 size={16} /> Partager</>}
+            {copied ? <><LinkIcon size={16} /> Lien copiÃ©</> : <><Share2 size={16} /> Partager</>}
           </button>
           <a target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-cr-gray text-xs font-semibold"
             href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}>Facebook</a>
