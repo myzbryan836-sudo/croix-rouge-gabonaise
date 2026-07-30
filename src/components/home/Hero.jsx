@@ -57,7 +57,7 @@ export default function Hero() {
           className="bg-white/95 backdrop-blur rounded-2xl p-6 shadow-2xl w-full"
         >
           <p className="font-display uppercase font-extrabold text-lg mb-1">Don rapide</p>
-          <p className="text-sm text-cr-dark/60 mb-5">Votre soutien agit immédiatement sur le terrain.</p>
+          <p className="text-sm text-cr-dark/60 mb-5">Il y a une vie que vous pouvez sauver aujourd'hui. Faites-le maintenant.</p>
           <div className="grid grid-cols-3 gap-2 mb-3">
             {AMOUNTS.map((a) => (
               <button
