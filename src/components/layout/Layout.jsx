@@ -3,6 +3,8 @@ import Navbar from './Navbar'
 import Footer from './Footer'
 import AlertButton from '../shared/AlertButton'
 import WhatsAppButton from '../shared/WhatsAppButton'
+import NotificationToast from '../shared/NotificationToast'
+import RatingPopup from '../shared/RatingPopup'
 
 export default function Layout() {
   return (
@@ -14,6 +16,8 @@ export default function Layout() {
       <Footer />
       <AlertButton />
       <WhatsAppButton />
+      <NotificationToast />
+      <RatingPopup />
     </div>
   )
 }
