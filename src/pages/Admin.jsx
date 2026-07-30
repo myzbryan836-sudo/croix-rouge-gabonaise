@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet } from 'lucide-react'
+import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet, star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Logo from '../components/shared/Logo'
 import { useAuth } from '../context/AuthContext'
@@ -19,9 +19,11 @@ import PartenairesTab from '../components/admin/PartenairesTab'
 import GalerieTab from '../components/admin/GalerieTab'
 import ZonesInterventionTab from '../components/admin/ZonesInterventionTab'
 import AProposTab from '../components/admin/AProposTab'
+import AvisTab from '../components/admin/AvisTab'
 
 const TABS = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, Comp: Dashboard },
+  { key: 'avis', label: 'Avis du site', icon: Star, Comp: AvisTab },
   { key: 'articles', label: 'Articles', icon: Newspaper, Comp: ArticlesTab },
   { key: 'missions', label: 'Missions', icon: Flag, Comp: MissionsTab },
   { key: 'zones', label: 'Zones d\u2019intervention', icon: MapPinned, Comp: ZonesInterventionTab },
