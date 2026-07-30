@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Heart } from 'lucide-react'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
 
-const AMOUNTS = [5000, 10000, 25000]
+const AMOUNTS = [100, 500, 1000]
 const DEFAULT_BG = 'https://images.unsplash.com/photo-1593113646773-028c64a8f1b8?q=80&w=1974&auto=format&fit=crop'
 
 export default function Hero() {
