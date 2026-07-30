@@ -61,10 +61,10 @@ export default function LiveFeedSection() {
             <h2 className="section-title">Sur le terrain</h2>
           </div>
           <div className="hidden md:flex gap-2">
-            <button onClick={() => scroll(-1)} className="w-11 h-11 rounded-full border border-cr-dark/15 flex items-center justify-center hover:bg-white">
+            <button onClick={() => scroll(-1)} aria-label="Précédent" className="w-11 h-11 rounded-full border border-cr-dark/15 flex items-center justify-center hover:bg-white">
               <ChevronLeft size={18} />
             </button>
-            <button onClick={() => scroll(1)} className="w-11 h-11 rounded-full border border-cr-dark/15 flex items-center justify-center hover:bg-white">
+           <button onClick={() => scroll(1)} aria-label="Suivant" className="w-11 h-11 rounded-full border border-cr-dark/15 flex items-center justify-center hover:bg-white">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -110,7 +110,7 @@ export default function LiveFeedSection() {
                       Lire la suite
                     </Link>
                   )}
-                  <button onClick={() => share(item)} className="text-cr-dark/40 hover:text-cr-red">
+                  <button onClick={() => share(item)} aria-label="Partager" className="text-cr-dark/40 hover:text-cr-red">
                     <Share2 size={15} />
                   </button>
                 </div>
@@ -138,7 +138,7 @@ export default function LiveFeedSection() {
                   alt={selectedAnnonce.titre}
                   className="w-full h-56 object-cover"
                 />
-                <button onClick={() => setSelectedAnnonce(null)} className="absolute top-3 right-3 bg-white/90 rounded-full p-1.5">
+                <button onClick={() => setSelectedAnnonce(null)} aria-label="Fermer" className="absolute top-3 right-3 bg-white/90 rounded-full p-1.5">
                   <X size={18} />
                 </button>
               </div>
