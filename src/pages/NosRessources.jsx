@@ -41,7 +41,7 @@ function RessourceVisual({ ressource }) {
   if (categorie === 'photo' && fichier_url) {
     return (
       <div className="h-48 rounded-2xl overflow-hidden mb-4">
-        <img src={fichier_url} alt={titre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={fichier_url} alt={titre} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       </div>
     )
   }
@@ -49,7 +49,7 @@ function RessourceVisual({ ressource }) {
   if (image_url) {
     return (
       <div className="h-48 rounded-2xl overflow-hidden mb-4">
-        <img src={image_url} alt={titre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={image_url} alt={titre} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       </div>
     )
   }

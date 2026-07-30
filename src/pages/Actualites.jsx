@@ -45,7 +45,7 @@ export default function Actualites() {
               <motion.div key={a.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}>
                 <Link to={`/actualites/${a.id}`} className="group block">
                   <div className="h-48 rounded-2xl overflow-hidden mb-4 relative">
-                    <img src={a.image_url} alt={a.titre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={a.image_url} alt={a.titre} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     {a.pdf_url && (
                       <span className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5">
                         <FileText size={14} className="text-cr-red" />

@@ -80,7 +80,7 @@ export default function Galerie() {
                     </span>
                   </>
                 ) : (
-                  <img src={m.url} alt={m.titre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <img src={m.url} alt={m.titre} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 )}
                 <span className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs font-semibold px-2.5 py-2 text-left opacity-0 group-hover:opacity-100 transition-opacity">
                   {m.titre}
