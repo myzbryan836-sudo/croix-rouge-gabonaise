@@ -5,7 +5,7 @@ import { CheckCircle2, CreditCard, Smartphone, Heart, Copy, Check } from 'lucide
 import { supabase } from '../supabase/config'
 import { useSupabaseCollection } from '../hooks/useSupabaseCollection'
 
-const AMOUNTS = [5000, 10000, 25000, 50000]
+const AMOUNTS = [100, 500, 2500, 5000, 10000]
 const METHODS = [
   { value: 'carte', label: 'Carte bancaire', icon: CreditCard },
   { value: 'moov_money', label: 'Moov Money', icon: Smartphone },
