@@ -29,7 +29,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-5 md:px-8 grid md:grid-cols-4 gap-10">
         <div>
           <Logo light />
-          <p className="text-sm text-white/60 mt-4 leading-relaxed">
+          <p className="text-sm text-white/75 mt-4 leading-relaxed">
             Mouvement humanitaire national œuvrant pour secourir, soigner, former et accompagner les communautés vulnérables partout au Gabon.
           </p>
           <div className="flex gap-3 mt-5">
@@ -54,7 +54,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="eyebrow mb-4">Navigation</h4>
+          <h4 className="eyebrow mb-4 !text-white/90">Navigation</h4>
           <ul className="space-y-2 text-sm text-white/70">
             <li><Link to="/missions" className="hover:text-white">Nos missions</Link></li>
             <li><Link to="/qui-sommes-nous" className="hover:text-white">Qui sommes-nous</Link></li>
@@ -67,7 +67,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="eyebrow mb-4">Contact</h4>
+          <h4 className="eyebrow mb-4 !text-white/90">Contact</h4>
           <ul className="space-y-3 text-sm text-white/70">
             <li className="flex items-center gap-2"><Phone size={15} /> {contact?.numero_vert || 'Information en cours de mise à jour'}</li>
             <li className="flex items-center gap-2"><Mail size={15} /> {contact?.email || 'Information en cours de mise à jour'}</li>
@@ -76,7 +76,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="eyebrow mb-4">Paiements acceptés</h4>
+          <h4 className="eyebrow mb-4 !text-white/90">Paiements acceptés</h4>
           <div className="flex flex-wrap gap-2 text-xs">
             {['Moov Money', 'Airtel Money', 'Visa', 'Mastercard'].map((p) => (
               <span key={p} className="px-3 py-1.5 rounded-full bg-white/10 text-white/80">{p}</span>
@@ -85,7 +85,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-5 md:px-8 mt-12 pt-6 border-t border-white/10 text-xs text-white/40 flex flex-col md:flex-row justify-between gap-2">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 mt-12 pt-6 border-t border-white/10 text-xs text-white/60 flex flex-col md:flex-row justify-between gap-2">
         <span>© {new Date().getFullYear()} Croix-Rouge Gabonaise. Tous droits réservés.</span>
         <span>Membre du Mouvement international de la Croix-Rouge et du Croissant-Rouge</span>
       </div>
