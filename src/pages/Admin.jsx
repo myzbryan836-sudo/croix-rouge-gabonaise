@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet, star } from 'lucide-react'
+import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet, Star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Logo from '../components/shared/Logo'
 import { useAuth } from '../context/AuthContext'
