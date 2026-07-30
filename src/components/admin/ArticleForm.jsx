@@ -33,9 +33,37 @@ export default function ArticleForm({ data }) {
   const openEdit = (item) => { setEditing({ ...emptyArticle(), ...item }); setShowPreview(false) }
   const close = () => { setEditing(null); setShowPreview(false); setTagInput('') }
 
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) return resolve(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const MAX_DIM = 1600
+          let { width, height } = img
+          if (width > MAX_DIM || height > MAX_DIM) {
+            if (width > height) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM }
+            else { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM }
+          }
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }))
+          }, 'image/jpeg', 0.8)
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   const uploadFile = async (file, prefix) => {
-    const path = `articles/${prefix}_${Date.now()}_${file.name}`
-    const { error } = await supabase.storage.from('media').upload(path, file)
+    const compressed = await compressImage(file)
+    const path = `articles/${prefix}_${Date.now()}_${compressed.name}`
+    const { error } = await supabase.storage.from('media').upload(path, compressed)
     if (error) throw error
     return supabase.storage.from('media').getPublicUrl(path).data.publicUrl
   }
