@@ -52,7 +52,7 @@ export default function Benevoles() {
         <span className="eyebrow mb-2 block">Rejoignez-nous</span>
         <h1 className="section-title mb-4">Devenir volontaire</h1>
         <p className="text-cr-dark/60 mb-6">
-          Rejoignez un réseau engagé de bénévoles présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
+          Rejoignez un réseau engagé de volontaires présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
         </p>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -78,7 +78,7 @@ export default function Benevoles() {
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-10 text-center shadow-sm">
               <CheckCircle2 className="mx-auto text-green-600 mb-4" size={56} />
               <h2 className="font-display uppercase font-extrabold text-2xl mb-2">Candidature envoyée</h2>
-              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre équipe des ressources bénévoles vous recontactera très prochainement.</p>
+              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre équipe des ressources volontaires vous recontactera très prochainement.</p>
             </motion.div>
           ) : (
             <motion.form key="form" onSubmit={handleSubmit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 md:p-8 shadow-sm space-y-4">

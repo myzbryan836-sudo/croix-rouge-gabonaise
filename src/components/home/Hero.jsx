@@ -42,7 +42,7 @@ export default function Hero() {
             Chaque geste<br />sauve une vie
           </h1>
           <p className="text-white/80 max-w-md text-base md:text-lg mb-8">
-            Urgences, santé, action sociale et formation : à travers tout le Gabon, nos équipes et bénévoles agissent chaque jour aux côtés des communautés vulnérables.
+            Urgences, santé, action sociale et formation : à travers tout le Gabon, nos équipes et volontaires agissent chaque jour aux côtés des communautés vulnérables.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link to="/dons" className="btn-primary">Faire un don <Heart size={16} /></Link>

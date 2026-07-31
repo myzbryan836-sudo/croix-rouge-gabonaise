@@ -9,7 +9,7 @@ const CATEGORIES = [
   { value: 'interventions', label: 'Interventions' },
   { value: 'campagnes', label: 'Campagnes' },
   { value: 'formations', label: 'Formations' },
-  { value: 'benevoles', label: 'Bénévoles' },
+  { value: 'benevoles', label: 'volontaires' },
   { value: 'evenements', label: 'Événements' },
 ]
 
@@ -29,7 +29,7 @@ export default function Galerie() {
         <span className="eyebrow mb-2 block">En images</span>
         <h1 className="section-title mb-4">Galerie</h1>
         <p className="text-cr-dark/60 max-w-2xl mb-8">
-          Interventions, campagnes humanitaires, formations, activités des bénévoles et événements de la Croix-Rouge Gabonaise.
+          Interventions, campagnes humanitaires, formations, activités des volontaires et événements de la Croix-Rouge Gabonaise.
         </p>
 
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-8">

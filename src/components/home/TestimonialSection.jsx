@@ -21,7 +21,7 @@ export default function TestimonialSection() {
             </div>
             <div className="text-left">
               <p className="font-semibold text-sm">{nom}</p>
-              <p className="text-xs text-cr-dark/50 uppercase tracking-wide">Bénévole terrain</p>
+              <p className="text-xs text-cr-dark/50 uppercase tracking-wide">volontaire terrain</p>
             </div>
           </div>
         </motion.div>

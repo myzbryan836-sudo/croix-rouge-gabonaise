@@ -26,7 +26,7 @@ function Counter({ value, suffix }) {
 
 const FALLBACK = [
   { label: 'Personnes secourues', valeur: 120000, suffixe: '+', ordre: 1 },
-  { label: 'Bénévoles actifs', valeur: 3500, suffixe: '+', ordre: 2 },
+  { label: 'volontaires actifs', valeur: 3500, suffixe: '+', ordre: 2 },
   { label: 'Provinces couvertes', valeur: 9, suffixe: '', ordre: 3 },
   { label: "Années d'engagement", valeur: 60, suffixe: '+', ordre: 4 },
 ]

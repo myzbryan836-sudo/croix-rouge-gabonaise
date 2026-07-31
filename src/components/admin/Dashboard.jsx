@@ -18,7 +18,7 @@ export default function Dashboard() {
     { label: 'Missions actives', value: missions.filter((m) => m.statut === 'publie').length, icon: Flag },
     { label: 'Annonces', value: annonces.length, icon: Megaphone },
     { label: 'Total dons complétés', value: `${totalDons.toLocaleString('fr-FR')} F`, icon: Heart },
-    { label: 'Candidatures bénévoles', value: candidatures.length, icon: HandHeart },
+    { label: 'Candidatures volontaires', value: candidatures.length, icon: HandHeart },
     { label: 'Signalements nouveaux', value: nouveauxSignalements, icon: AlertTriangle },
   ]
 
