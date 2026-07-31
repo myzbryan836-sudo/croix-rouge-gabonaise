@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from '../../supabase/config'
@@ -9,6 +10,12 @@ const TYPE_LABELS = {
   article: 'Actualité',
   ressource: 'Ressource',
   annonce: 'Annonce',
+}
+
+const TYPE_LINKS = {
+  article: '/actualites',
+  ressource: '/nos-ressources',
+  annonce: '/',
 }
 
 export default function NotificationBell({ light }) {
@@ -53,6 +60,10 @@ export default function NotificationBell({ light }) {
     if (!open) localStorage.setItem(STORAGE_KEY, new Date().toISOString())
   }
 
+  const handleItemClick = () => {
+    setOpen(false)
+  }
+
   const formatDate = (d) => {
     try {
       return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -86,11 +97,16 @@ export default function NotificationBell({ light }) {
               <p className="px-4 py-6 text-sm text-cr-dark/40 text-center">Aucune notification pour le moment.</p>
             ) : (
               items.map((n) => (
-                <div key={n.id} className="px-4 py-2.5 hover:bg-cr-gray transition-colors">
+                <Link
+                  key={n.id}
+                  to={TYPE_LINKS[n.type] || '/'}
+                  onClick={handleItemClick}
+                  className="block px-4 py-2.5 hover:bg-cr-gray transition-colors cursor-pointer"
+                >
                   <p className="text-[11px] font-semibold text-cr-red uppercase">{TYPE_LABELS[n.type] || n.type}</p>
                   <p className="text-sm text-cr-dark">{n.titre}</p>
                   <p className="text-[11px] text-cr-dark/40 mt-0.5">{formatDate(n.cree_le)}</p>
-                </div>
+                </Link>
               ))
             )}
           </motion.div>
