@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Upload, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Upload, Eye, Film } from 'lucide-react'
 import { supabase } from '../../supabase/config'
 import GpsPicker from './GpsPicker'
 
@@ -56,6 +56,32 @@ export default function DataTable({ collectionName, fields, data, titleField = '
       setUploading(false)
     }
   }
+  const handleMultiUpload = async (name, fileList) => {
+    const files = Array.from(fileList || [])
+    if (!files.length) return
+    setUploading(true)
+    try {
+      const urls = []
+      for (const file of files) {
+        const compressed = await compressImage(file)
+        const path = `${collectionName}/${Date.now()}_${compressed.name}`
+        const { error: uploadError } = await supabase.storage.from('media').upload(path, compressed)
+        if (uploadError) throw uploadError
+        const { data } = supabase.storage.from('media').getPublicUrl(path)
+        urls.push(data.publicUrl)
+      }
+      setEditing((e) => ({ ...e, [name]: [...(e[name] || []), ...urls] }))
+    } catch (err) {
+      alert("Erreur lors de l'envoi des fichiers : " + err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeGalleryImage = (name, index) => {
+    setEditing((e) => ({ ...e, [name]: (e[name] || []).filter((_, i) => i !== index) }))
+  }
+
 
   const openCreate = () => {
     const empty = {}
@@ -175,6 +201,24 @@ export default function DataTable({ collectionName, fields, data, titleField = '
                         <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleUpload(f.name, e.target.files[0])} />
                       </label>
                       {editing[f.name] && <img src={editing[f.name]} alt="" className="h-20 rounded-lg object-cover" />}
+                    </div>
+                  ) : f.type === 'gallery' ? (
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-xs font-semibold text-cr-red cursor-pointer w-fit">
+                        <Upload size={14} /> {uploading ? 'Envoi...' : 'Televerser plusieurs images'}
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleMultiUpload(f.name, e.target.files)} />
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {(editing[f.name] || []).map((url, i) => (
+                          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-cr-gray">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => removeGalleryImage(f.name, i)}
+                              className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : f.type === 'gps' ? (
                     <GpsPicker

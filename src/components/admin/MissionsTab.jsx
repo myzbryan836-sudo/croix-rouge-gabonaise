@@ -7,6 +7,7 @@ const FIELDS = [
   { name: 'badge', label: 'Badge', type: 'text' },
   { name: 'description', label: 'Description', type: 'textarea' },
   { name: 'image_url', label: 'Image', type: 'image' },
+  { name: 'galerie', label: 'Galerie (plusieurs photos)', type: 'gallery' },
   { name: 'icone', label: 'Icône', type: 'select', options: ['urgence', 'sante', 'social', 'formation'] },
   { name: 'actions', label: 'Actions (une par ligne)', type: 'list' },
   { name: 'stat', label: 'Statistique clé', type: 'text' },
