@@ -15,6 +15,7 @@ const FIELDS = [
     type: 'select',
     options: ['interventions', 'campagnes', 'formations', 'benevoles', 'evenements'],
   },
+  { name: 'date_publication', label: 'Date de publication', type: 'date' },
   { name: 'statut', label: 'Statut', type: 'select', options: ['brouillon', 'publie'] },
   { name: 'ordre', label: 'Ordre d\u2019affichage', type: 'number' },
 ]

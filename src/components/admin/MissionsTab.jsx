@@ -11,6 +11,7 @@ const FIELDS = [
   { name: 'icone', label: 'Icône', type: 'select', options: ['urgence', 'sante', 'social', 'formation'] },
   { name: 'actions', label: 'Actions (une par ligne)', type: 'list' },
   { name: 'stat', label: 'Statistique clé', type: 'text' },
+  { name: 'date_publication', label: 'Date de publication', type: 'date' },
   { name: 'statut', label: 'Statut', type: 'select', options: ['publie', 'brouillon'] },
   { name: 'ordre', label: 'Ordre', type: 'number' },
 ]

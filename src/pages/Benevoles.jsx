@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, HandHeart, Download } from 'lucide-react'
+import { CheckCircle2, HandHeart, Camera } from 'lucide-react'
 import { supabase } from '../supabase/config'
 
 const DISPONIBILITES = [
@@ -14,6 +14,8 @@ const initialForm = { nom: '', email: '', telephone: '', ville: '', disponibilit
 
 export default function Benevoles() {
   const [form, setForm] = useState(initialForm)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
@@ -27,18 +29,40 @@ export default function Benevoles() {
     }))
   }
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSending(true)
     setError('')
     try {
+      let photo_url = ''
+
+      if (photoFile) {
+        const path = `benevoles/${Date.now()}_${photoFile.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(path, photoFile, { contentType: photoFile.type, upsert: true })
+        if (uploadError) throw uploadError
+        const { data } = supabase.storage.from('media').getPublicUrl(path)
+        photo_url = data.publicUrl
+      }
+
       const { error: insertError } = await supabase.from('candidatures_benevoles').insert({
         ...form,
+        photo_url,
         statut: 'nouveau',
       })
       if (insertError) throw insertError
       setSent(true)
       setForm(initialForm)
+      setPhotoFile(null)
+      setPhotoPreview('')
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.')
     } finally {
@@ -112,6 +136,24 @@ export default function Benevoles() {
               <textarea name="motivation" value={form.motivation} onChange={handleChange} required rows={3} placeholder="Votre motivation"
                 className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red resize-none" />
 
+              <div>
+                <p className="font-semibold text-sm mb-2">Photo d'identité</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-32 rounded-lg bg-cr-gray border border-cr-dark/15 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Aperçu" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="text-cr-dark/30" size={28} />
+                    )}
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-cr-red cursor-pointer border border-cr-red rounded-lg px-4 py-2.5 w-fit">
+                    <Camera size={14} /> {photoFile ? 'Changer la photo' : 'Téléverser une photo'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                  </label>
+                </div>
+                <p className="text-xs text-cr-dark/40 mt-1.5">Format portrait recommandé, visage bien visible.</p>
+              </div>
+
               {error && <p className="text-sm text-cr-red">{error}</p>}
 
               <button type="submit" disabled={sending} className="btn-primary w-full disabled:opacity-60">
@@ -124,4 +166,3 @@ export default function Benevoles() {
     </div>
   )
 }
-

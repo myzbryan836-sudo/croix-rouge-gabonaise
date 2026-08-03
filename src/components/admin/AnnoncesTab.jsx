@@ -8,6 +8,7 @@ const FIELDS = [
   { name: 'image_url', label: 'Image', type: 'image' },
   { name: 'lien', label: 'Lien', type: 'text' },
   { name: 'type', label: 'Type', type: 'select', options: ['annonce', 'publicite', 'banniere'] },
+  { name: 'date_publication', label: 'Date de publication', type: 'date' },
   { name: 'statut', label: 'Statut', type: 'select', options: ['publie', 'brouillon'] },
   { name: 'ordre', label: 'Ordre', type: 'number' },
 ]

@@ -46,7 +46,7 @@ export default function DataTable({ collectionName, fields, data, titleField = '
     try {
       const compressed = await compressImage(file)
       const path = `${collectionName}/${Date.now()}_${compressed.name}`
-      const { error: uploadError } = await supabase.storage.from('media').upload(path, compressed)
+      const { error: uploadError } = await supabase.storage.from('media').upload(path, compressed, { contentType: compressed.type, upsert: true })
       if (uploadError) throw uploadError
       const { data } = supabase.storage.from('media').getPublicUrl(path)
       handleChange(name, data.publicUrl)
@@ -65,7 +65,7 @@ export default function DataTable({ collectionName, fields, data, titleField = '
       for (const file of files) {
         const compressed = await compressImage(file)
         const path = `${collectionName}/${Date.now()}_${compressed.name}`
-        const { error: uploadError } = await supabase.storage.from('media').upload(path, compressed)
+        const { error: uploadError } = await supabase.storage.from('media').upload(path, compressed, { contentType: compressed.type, upsert: true })
         if (uploadError) throw uploadError
         const { data } = supabase.storage.from('media').getPublicUrl(path)
         urls.push(data.publicUrl)
@@ -198,7 +198,7 @@ export default function DataTable({ collectionName, fields, data, titleField = '
                         className="w-full border border-cr-dark/15 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
                       <label className="flex items-center gap-2 text-xs font-semibold text-cr-red cursor-pointer w-fit">
                         <Upload size={14} /> {uploading ? 'Envoi...' : 'Téléverser un fichier'}
-                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleUpload(f.name, e.target.files[0])} />
+                        <input type="file" accept="image/*,video/*,application/pdf" className="hidden" onChange={(e) => handleUpload(f.name, e.target.files[0])} />
                       </label>
                       {editing[f.name] && <img src={editing[f.name]} alt="" className="h-20 rounded-lg object-cover" />}
                     </div>
@@ -231,7 +231,7 @@ export default function DataTable({ collectionName, fields, data, titleField = '
                       onChange={(e) => handleChange(f.name, e.target.value.split('\n').filter(Boolean))}
                       className="w-full border border-cr-dark/15 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
                   ) : (
-                    <input type={f.type === 'number' ? 'number' : 'text'} value={editing[f.name] || ''} onChange={(e) => handleChange(f.name, e.target.value)}
+                    <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} value={editing[f.name] || ''} onChange={(e) => handleChange(f.name, e.target.value)}
                       className="w-full border border-cr-dark/15 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
                   )}
                 </div>
