@@ -20,9 +20,11 @@ import GalerieTab from '../components/admin/GalerieTab'
 import ZonesInterventionTab from '../components/admin/ZonesInterventionTab'
 import AProposTab from '../components/admin/AProposTab'
 import AvisTab from '../components/admin/AvisTab'
+import SlidesAccueilTab from '../components/admin/SlidesAccueilTab'
 
 const TABS = [
   { key: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, Comp: Dashboard },
+  { key: 'slides', label: 'Slides accueil', icon: Images, Comp: SlidesAccueilTab },
   { key: 'avis', label: 'Avis du site', icon: Star, Comp: AvisTab },
   { key: 'articles', label: 'Articles', icon: Newspaper, Comp: ArticlesTab },
   { key: 'missions', label: 'Missions', icon: Flag, Comp: MissionsTab },

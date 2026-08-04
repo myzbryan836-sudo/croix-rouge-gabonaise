@@ -1,35 +1,74 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Heart } from 'lucide-react'
 import { useSupabaseCollection } from '../../hooks/useSupabaseCollection'
 
 const AMOUNTS = [100, 500, 1000]
 const DEFAULT_BG = 'https://images.unsplash.com/photo-1593113646773-028c64a8f1b8?q=80&w=1974&auto=format&fit=crop'
+const SLIDE_DURATION = 5000
 
 export default function Hero() {
   const [amount, setAmount] = useState(10000)
   const [custom, setCustom] = useState('')
+  const [slideIndex, setSlideIndex] = useState(0)
   const { data: contenus, loading } = useSupabaseCollection('contenus')
+  const { data: slidesData, loading: slidesLoading } = useSupabaseCollection('slides_accueil', { orderByField: 'ordre', orderDirection: 'asc' })
 
   const selected = custom ? Number(custom) : amount
   const customBg = contenus.find((c) => c.cle === 'hero_background_image')?.valeur
+  const slides = slidesData.filter((s) => s.statut === 'publie')
+
+  useEffect(() => {
+    if (slides.length < 2) return
+    const timer = setInterval(() => {
+      setSlideIndex((i) => (i + 1) % slides.length)
+    }, SLIDE_DURATION)
+    return () => clearInterval(timer)
+  }, [slides.length])
+
   // Tant que le contenu n'a pas fini de charger, on n'affiche aucune image de
   // secours : ça évite qu'une ancienne image (ou l'image par défaut) apparaisse
   // une fraction de seconde avant que la bonne image ne s'affiche.
-  const heroBg = customBg || (loading ? null : DEFAULT_BG)
+  const singleBg = customBg || (loading ? null : DEFAULT_BG)
+  const hasSlides = slides.length > 0
 
   return (
     <section className="relative min-h-screen flex items-end pb-20 md:pb-28 overflow-hidden bg-cr-dark">
-      {heroBg && (
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
-          style={{
-            backgroundImage: `url('${heroBg}')`,
-          }}
-        />
+      {hasSlides ? (
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={slides[slideIndex]?.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('${slides[slideIndex]?.image_url}')` }}
+          />
+        </AnimatePresence>
+      ) : (
+        !slidesLoading && singleBg && (
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
+            style={{ backgroundImage: `url('${singleBg}')` }}
+          />
+        )
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-cr-dark via-cr-dark/60 to-cr-dark/20" />
+
+      {hasSlides && slides.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {slides.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => setSlideIndex(i)}
+              aria-label={`Aller à l'image ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${i === slideIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="relative max-w-7xl mx-auto px-5 md:px-8 w-full grid lg:grid-cols-[1.3fr_1fr] gap-10 items-end">
         <motion.div
