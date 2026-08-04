@@ -160,7 +160,9 @@ export default function Dons() {
                     <CopyLine label="Numéro Moov Money" value={paiement.moov_money_numero} />
                     <CopyLine label="Titulaire" value={paiement.moov_money_titulaire} />
                     <QrBlock url={paiement.moov_money_qr} />
-                    <p className="text-xs text-cr-dark/50 pt-2">Envoyez le montant à ce numéro puis confirmez ci-dessous. Notre équipe validera la réception.</p>
+                    <p className="text-xs text-cr-dark/50 pt-2 whitespace-pre-line">
+                      {paiement.instructions_moov || "Envoyez le montant à ce numéro puis confirmez ci-dessous. Notre équipe validera la réception."}
+                    </p>
                   </div>
                 )}
 

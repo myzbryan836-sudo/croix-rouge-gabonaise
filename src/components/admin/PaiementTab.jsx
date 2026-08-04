@@ -8,6 +8,7 @@ const FIELDS = [
   { name: 'moov_money_numero', label: 'Numéro Moov Money' },
   { name: 'moov_money_titulaire', label: 'Nom du titulaire' },
   { name: 'moov_money_qr', label: 'QR Code Moov Money', type: 'qr' },
+  { name: 'instructions_moov', label: 'Instructions Moov Money (affichées aux donateurs)', type: 'textarea' },
   { section: 'Airtel Money' },
   { name: 'airtel_money_numero', label: 'Numéro Airtel Money' },
   { name: 'airtel_money_titulaire', label: 'Nom du titulaire' },
