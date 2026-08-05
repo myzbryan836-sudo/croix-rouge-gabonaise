@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film } from 'lucide-react'
+import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film X } from 'lucide-react'
 import { supabase } from '../supabase/config'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { categorieLabel } from '../utils/articleCategories'
@@ -16,6 +16,7 @@ export default function ArticleDetail() {
   const [article, setArticle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [lightbox, setLightbox] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -79,15 +80,35 @@ export default function ArticleDetail() {
             <h3 className="font-display uppercase font-bold text-sm mb-3 text-cr-dark/60">Galerie</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {article.galerie.map((m, i) => (
-                <div key={i} className="rounded-xl overflow-hidden bg-black aspect-square">
+                <div
+                  key={i}
+                  onClick={() => m.type !== 'video' && setLightbox(m)}
+                  className={`rounded-xl overflow-hidden bg-black aspect-square ${m.type !== 'video' ? 'cursor-pointer' : ''}`}
+                >
                   {m.type === 'video' ? (
                     <video src={m.url} controls className="w-full h-full object-cover" />
                   ) : (
-                    <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    <img src={m.url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                   )}
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {lightbox && (
+          <div
+            className="fixed inset-0 bg-black/90 z-[120] flex items-center justify-center p-4"
+            onClick={() => setLightbox(null)}
+          >
+            <button
+              onClick={() => setLightbox(null)}
+              aria-label="Fermer"
+              className="absolute top-5 right-5 text-white/80 hover:text-white"
+            >
+              <X size={28} />
+            </button>
+            <img src={lightbox.url} alt="" className="max-h-[90vh] max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
           </div>
         )}
 
