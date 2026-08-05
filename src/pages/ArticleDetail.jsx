@@ -1,6 +1,6 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film X } from 'lucide-react'
+import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film, X } from 'lucide-react'
 import { supabase } from '../supabase/config'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { categorieLabel } from '../utils/articleCategories'
