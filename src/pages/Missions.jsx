@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, HeartPulse, Users, GraduationCap, X, Heart, HandHeart, MapPinned } from 'lucide-react'
+import { AlertTriangle, HeartPulse, Users, GraduationCap, X, Heart, HandHeart, MapPinned, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import { useSupabaseCollection } from '../hooks/useSupabaseCollection'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
@@ -21,7 +21,7 @@ export default function Missions() {
   const location = useLocation()
   const initialCategorie = searchParams.get('categorie')
   const [filter, setFilter] = useState(FILTERS.some((f) => f.value === initialCategorie) ? initialCategorie : 'tous')
-  const [lightbox, setLightbox] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
 
   useEffect(() => {
     if (!loading && location.hash) {
@@ -101,8 +101,8 @@ export default function Missions() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {gallery.map((m) => (
-              <button key={m.id} onClick={() => setLightbox(m)} className="aspect-square rounded-xl overflow-hidden group">
+            {gallery.map((m, i) => (
+              <button key={m.id} onClick={() => setLightboxIndex(i)} className="aspect-square rounded-xl overflow-hidden group">
                 <img src={m.image_url} alt={m.titre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               </button>
             ))}
@@ -122,16 +122,34 @@ export default function Missions() {
       </div>
 
       <AnimatePresence>
-        {lightbox && (
+        {lightboxIndex !== null && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-6"
-            onClick={() => setLightbox(null)}
+            onClick={() => setLightboxIndex(null)}
           >
-            <button className="absolute top-6 right-6 text-white" onClick={() => setLightbox(null)}><X size={28} /></button>
+            <button className="absolute top-6 right-6 text-white" onClick={() => setLightboxIndex(null)}><X size={28} /></button>
+            {gallery.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => (i - 1 + gallery.length) % gallery.length) }}
+                  aria-label="Précédent"
+                  className="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/40 rounded-full p-2"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => (i + 1) % gallery.length) }}
+                  aria-label="Suivant"
+                  className="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/40 rounded-full p-2"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              </>
+            )}
             <motion.img
               initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-              src={lightbox.image_url} alt={lightbox.titre}
+              src={gallery[lightboxIndex].image_url} alt={gallery[lightboxIndex].titre}
               className="max-h-[85vh] max-w-full rounded-lg object-contain"
               onClick={(e) => e.stopPropagation()}
             />
