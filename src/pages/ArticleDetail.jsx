@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film, X } from 'lucide-react'
+import { ArrowLeft, Share2, Link as LinkIcon, FileText, Film, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabase/config'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
 import { categorieLabel } from '../utils/articleCategories'
@@ -16,7 +16,7 @@ export default function ArticleDetail() {
   const [article, setArticle] = useState(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [lightbox, setLightbox] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -44,7 +44,7 @@ export default function ArticleDetail() {
     return (
       <div className="pt-32 pb-20 text-center">
         <p className="text-cr-dark/60 mb-4">Article introuvable.</p>
-        <Link to="/actualites" className="btn-outline">Retour aux actualitÃ©s</Link>
+        <Link to="/actualites" className="btn-outline">Retour aux actualités</Link>
       </div>
     )
   }
@@ -62,7 +62,7 @@ export default function ArticleDetail() {
         <h1 className="font-display uppercase font-extrabold text-3xl md:text-5xl mt-2 mb-4 leading-tight">{article.titre}</h1>
         <p className="text-sm text-cr-dark/50 mb-8">
           {toDate(article.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-          {article.auteur ? ` Â· ${article.auteur}` : ''}
+          {article.auteur ? ` · ${article.auteur}` : ''}
         </p>
 
         {article.image_url && (
@@ -82,7 +82,7 @@ export default function ArticleDetail() {
               {article.galerie.map((m, i) => (
                 <div
                   key={i}
-                  onClick={() => m.type !== 'video' && setLightbox(m)}
+                  onClick={() => m.type !== 'video' && setLightboxIndex(i)}
                   className={`rounded-xl overflow-hidden bg-black aspect-square ${m.type !== 'video' ? 'cursor-pointer' : ''}`}
                 >
                   {m.type === 'video' ? (
@@ -96,26 +96,61 @@ export default function ArticleDetail() {
           </div>
         )}
 
-        {lightbox && (
-          <div
-            className="fixed inset-0 bg-black/90 z-[120] flex items-center justify-center p-4"
-            onClick={() => setLightbox(null)}
-          >
-            <button
-              onClick={() => setLightbox(null)}
-              aria-label="Fermer"
-              className="absolute top-5 right-5 text-white/80 hover:text-white"
+        {lightboxIndex !== null && (() => {
+          const images = article.galerie.filter((m) => m.type !== 'video')
+          const current = article.galerie[lightboxIndex]
+          const currentImgPos = images.findIndex((m) => m.url === current.url)
+          const goTo = (delta) => {
+            const nextPos = (currentImgPos + delta + images.length) % images.length
+            const nextIndex = article.galerie.findIndex((m) => m.url === images[nextPos].url)
+            setLightboxIndex(nextIndex)
+          }
+          return (
+            <div
+              className="fixed inset-0 bg-black/90 z-[120] flex items-center justify-center p-4"
+              onClick={() => setLightboxIndex(null)}
             >
-              <X size={28} />
-            </button>
-            <img src={lightbox.url} alt="" className="max-h-[90vh] max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-          </div>
-        )}
+              <button
+                onClick={() => setLightboxIndex(null)}
+                aria-label="Fermer"
+                className="absolute top-5 right-5 text-white/80 hover:text-white"
+              >
+                <X size={28} />
+              </button>
 
-        {article.pdf_url && (
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); goTo(-1) }}
+                    aria-label="Précédent"
+                    className="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/40 rounded-full p-2"
+                  >
+                    <ChevronLeft size={28} />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); goTo(1) }}
+                    aria-label="Suivant"
+                    className="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/40 rounded-full p-2"
+                  >
+                    <ChevronRight size={28} />
+                  </button>
+                </>
+              )}
+
+              <img
+                src={current.url}
+                alt=""
+                className="max-h-[90vh] max-w-full rounded-lg object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )
+        })()}
+
+        {(article.pdf_url) && (
           <a href={article.pdf_url} target="_blank" rel="noreferrer"
             className="flex items-center gap-2 text-sm font-semibold text-cr-red mb-8 w-fit">
-            <FileText size={18} /> TÃ©lÃ©charger le document PDF
+            <FileText size={18} /> Télécharger le document PDF
           </a>
         )}
 
@@ -129,7 +164,7 @@ export default function ArticleDetail() {
 
         <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-cr-dark/10">
           <button onClick={share} className="btn-outline">
-            {copied ? <><LinkIcon size={16} /> Lien copiÃ©</> : <><Share2 size={16} /> Partager</>}
+            {copied ? <><LinkIcon size={16} /> Lien copié</> : <><Share2 size={16} /> Partager</>}
           </button>
           <a target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-lg bg-cr-gray text-xs font-semibold"
             href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}>Facebook</a>
