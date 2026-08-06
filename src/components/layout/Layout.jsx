@@ -6,6 +6,7 @@ import WhatsAppButton from '../shared/WhatsAppButton'
 import NotificationToast from '../shared/NotificationToast'
 import RatingPopup from '../shared/RatingPopup'
 import LoginPrompt from '../shared/LoginPrompt'
+import PushSubscriber from '../shared/PushSubscriber'
 
 export default function Layout() {
   return (
@@ -20,6 +21,7 @@ export default function Layout() {
       <NotificationToast />
       <RatingPopup />
       <LoginPrompt />
+      <PushSubscriber />
     </div>
   )
 }
