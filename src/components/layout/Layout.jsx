@@ -5,6 +5,7 @@ import AlertButton from '../shared/AlertButton'
 import WhatsAppButton from '../shared/WhatsAppButton'
 import NotificationToast from '../shared/NotificationToast'
 import RatingPopup from '../shared/RatingPopup'
+import LoginPrompt from '../shared/LoginPrompt'
 
 export default function Layout() {
   return (
@@ -18,6 +19,7 @@ export default function Layout() {
       <WhatsAppButton />
       <NotificationToast />
       <RatingPopup />
+      <LoginPrompt />
     </div>
   )
 }
