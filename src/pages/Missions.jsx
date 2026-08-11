@@ -31,7 +31,10 @@ export default function Missions() {
   }, [loading, location.hash])
 
   const filtered = filter === 'tous' ? data : data.filter((m) => m.icone === filter)
-  const gallery = filtered.filter((m) => m.image_url)
+  const gallery = filtered.flatMap((m) => [
+    ...(m.image_url ? [{ id: `${m.id}-cover`, titre: m.titre, image_url: m.image_url }] : []),
+    ...((m.galerie || []).map((url, i) => ({ id: `${m.id}-g${i}`, titre: m.titre, image_url: url }))),
+  ])
 
   return (
     <div className="pt-28 pb-20">
