@@ -24,9 +24,9 @@ export default function LiveFeedSection() {
 
   const items = useMemo(() => {
     const all = [
-      ...missions.map((m) => ({ ...m, _type: 'mission', _date: toDate(m.date || m.cree_le) })),
-      ...articles.map((a) => ({ ...a, _type: 'article', _date: toDate(a.date || a.cree_le) })),
-      ...annonces.map((a) => ({ ...a, _type: 'annonce', _date: toDate(a.date || a.cree_le) })),
+      ...missions.map((m) => ({ ...m, _type: 'mission', _date: toDate(m.date_publication || m.cree_le) })),
+      ...articles.map((a) => ({ ...a, _type: 'article', _date: toDate(a.date_publication || a.cree_le) })),
+      ...annonces.map((a) => ({ ...a, _type: 'annonce', _date: toDate(a.date_publication || a.cree_le) })),
     ]
     return all.sort((a, b) => b._date - a._date).slice(0, 9)
   }, [missions, articles, annonces])
