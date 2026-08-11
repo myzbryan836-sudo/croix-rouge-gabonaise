@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, PlayCircle, Images, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useSupabaseCollection } from '../hooks/useSupabaseCollection'
@@ -13,11 +13,36 @@ const CATEGORIES = [
   { value: 'evenements', label: 'Événements' },
 ]
 
+const ICONE_TO_CATEGORIE = {
+  urgence: 'interventions',
+  sante: 'interventions',
+  social: 'campagnes',
+  formation: 'formations',
+}
+
 export default function Galerie() {
-  const { data, loading } = useSupabaseCollection('galerie_medias', { statut: 'publie', orderByField: 'ordre', orderDirection: 'asc' })
+  const { data: medias, loading: loadingMedias } = useSupabaseCollection('galerie_medias', { statut: 'publie', orderByField: 'ordre', orderDirection: 'asc' })
+  const { data: missions, loading: loadingMissions } = useSupabaseCollection('missions', { statut: 'publie' })
   const [filter, setFilter] = useState('tous')
   const [search, setSearch] = useState('')
   const [lightboxIndex, setLightboxIndex] = useState(null)
+
+  const loading = loadingMedias || loadingMissions
+
+  const data = useMemo(() => {
+    const missionMedias = missions.flatMap((m) => {
+      const categorie = ICONE_TO_CATEGORIE[m.icone] || 'interventions'
+      const items = []
+      if (m.image_url) {
+        items.push({ id: `mission-${m.id}-cover`, url: m.image_url, type: 'image', titre: m.titre, categorie })
+      }
+      ;(m.galerie || []).forEach((url, i) => {
+        items.push({ id: `mission-${m.id}-g${i}`, url, type: 'image', titre: m.titre, categorie })
+      })
+      return items
+    })
+    return [...medias, ...missionMedias]
+  }, [medias, missions])
 
   const filtered = data
     .filter((m) => filter === 'tous' || m.categorie === filter)
