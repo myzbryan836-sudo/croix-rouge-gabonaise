@@ -20,29 +20,60 @@ const ICONE_TO_CATEGORIE = {
   formation: 'formations',
 }
 
+const ARTICLE_CAT_TO_CATEGORIE = {
+  evenement: 'evenements',
+  article: 'campagnes',
+  communique: 'campagnes',
+  rapport: 'campagnes',
+  publication: 'campagnes',
+}
+
 export default function Galerie() {
-  const { data: medias, loading: loadingMedias } = useSupabaseCollection('galerie_medias', { statut: 'publie', orderByField: 'ordre', orderDirection: 'asc' })
-  const { data: missions, loading: loadingMissions } = useSupabaseCollection('missions', { statut: 'publie' })
+  const { data: medias, loading: l1 } = useSupabaseCollection('galerie_medias', { statut: 'publie', orderByField: 'ordre', orderDirection: 'asc' })
+  const { data: missions, loading: l2 } = useSupabaseCollection('missions', { statut: 'publie' })
+  const { data: articles, loading: l3 } = useSupabaseCollection('articles', { statut: 'publie' })
+  const { data: ressources, loading: l4 } = useSupabaseCollection('ressources', { statut: 'publie' })
+  const { data: zones, loading: l5 } = useSupabaseCollection('zones_intervention', { statut: 'publie' })
+
   const [filter, setFilter] = useState('tous')
   const [search, setSearch] = useState('')
   const [lightboxIndex, setLightboxIndex] = useState(null)
 
-  const loading = loadingMedias || loadingMissions
+  const loading = l1 || l2 || l3 || l4 || l5
 
   const data = useMemo(() => {
     const missionMedias = missions.flatMap((m) => {
       const categorie = ICONE_TO_CATEGORIE[m.icone] || 'interventions'
       const items = []
-      if (m.image_url) {
-        items.push({ id: `mission-${m.id}-cover`, url: m.image_url, type: 'image', titre: m.titre, categorie })
-      }
-      ;(m.galerie || []).forEach((url, i) => {
-        items.push({ id: `mission-${m.id}-g${i}`, url, type: 'image', titre: m.titre, categorie })
-      })
+      if (m.image_url) items.push({ id: `mission-${m.id}-cover`, url: m.image_url, type: 'image', titre: m.titre, categorie })
+      ;(m.galerie || []).forEach((url, i) => items.push({ id: `mission-${m.id}-g${i}`, url, type: 'image', titre: m.titre, categorie }))
       return items
     })
-    return [...medias, ...missionMedias]
-  }, [medias, missions])
+
+    const articleMedias = articles.flatMap((a) => {
+      const categorie = ARTICLE_CAT_TO_CATEGORIE[a.categorie] || 'campagnes'
+      const items = []
+      if (a.image_url) items.push({ id: `article-${a.id}-cover`, url: a.image_url, type: 'image', titre: a.titre, categorie })
+      ;(a.galerie || []).forEach((m, i) => items.push({ id: `article-${a.id}-g${i}`, url: m.url, type: m.type || 'image', titre: a.titre, categorie }))
+      return items
+    })
+
+    const ressourceMedias = ressources
+      .filter((r) => r.image_url || (r.categorie === 'photo' && r.fichier_url) || (r.categorie === 'video' && r.fichier_url))
+      .map((r) => ({
+        id: `ressource-${r.id}`,
+        url: r.image_url || r.fichier_url,
+        type: r.categorie === 'video' ? 'video' : 'image',
+        titre: r.titre,
+        categorie: 'campagnes',
+      }))
+
+    const zoneMedias = zones
+      .filter((z) => z.image_url)
+      .map((z) => ({ id: `zone-${z.id}`, url: z.image_url, type: 'image', titre: z.ville || z.titre, categorie: 'interventions' }))
+
+    return [...medias, ...missionMedias, ...articleMedias, ...ressourceMedias, ...zoneMedias]
+  }, [medias, missions, articles, ressources, zones])
 
   const filtered = data
     .filter((m) => filter === 'tous' || m.categorie === filter)
