@@ -10,6 +10,7 @@ const COLUMNS = [
 ]
 
 const DETAIL_FIELDS = [
+  { key: 'photo_url', label: 'Photo du candidat', type: 'image' },
   { key: 'disponibilites', label: 'Disponibilités' },
   { key: 'competences', label: 'Compétences' },
   { key: 'motivation', label: 'Motivation' },

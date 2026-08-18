@@ -91,7 +91,13 @@ export default function StatusTable({ collectionName, data, columns, statuses, d
               {fullFields.map((f) => (
                 <div key={f.key}>
                   <span className="text-xs font-semibold text-cr-dark/50 uppercase block mb-0.5">{f.label}</span>
-                  {f.type === 'media' ? (
+                  {f.type === 'image' ? (
+                    viewing[f.key] ? (
+                      <img src={viewing[f.key]} alt="" className="h-40 rounded-lg object-cover mt-1" />
+                    ) : (
+                      <p className="text-sm text-cr-dark/40">Aucune photo.</p>
+                    )
+                  ) : f.type === 'media' ? (
                     (viewing[f.key] || []).length ? (
                       <div className="grid grid-cols-3 gap-2 mt-1">
                         {viewing[f.key].map((url, i) => {
