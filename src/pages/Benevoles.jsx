@@ -3,6 +3,45 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, HandHeart, Camera } from 'lucide-react'
 import { supabase } from '../supabase/config'
 
+function sanitizeFileName(name) {
+  const parts = name.split('.')
+  const ext = parts.length > 1 ? '.' + parts.pop() : ''
+  const base = parts.join('.')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+  return base + ext
+}
+
+function compressImage(file) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) return resolve(file)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX_DIM = 1200
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM }
+          else { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }))
+        }, 'image/jpeg', 0.75)
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target.result
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 const DISPONIBILITES = [
   { value: 'week_end', label: 'Week-end' },
   { value: 'semaine', label: 'En semaine' },
@@ -44,10 +83,11 @@ export default function Benevoles() {
       let photo_url = ''
 
       if (photoFile) {
-        const path = `benevoles/${Date.now()}_${photoFile.name}`
+        const compressed = await compressImage(photoFile)
+        const path = `benevoles/${Date.now()}_${sanitizeFileName(compressed.name)}`
         const { error: uploadError } = await supabase.storage
           .from('media')
-          .upload(path, photoFile, { contentType: photoFile.type, upsert: true })
+          .upload(path, compressed, { contentType: compressed.type, upsert: true })
         if (uploadError) throw uploadError
         const { data } = supabase.storage.from('media').getPublicUrl(path)
         photo_url = data.publicUrl
@@ -64,7 +104,8 @@ export default function Benevoles() {
       setPhotoFile(null)
       setPhotoPreview('')
     } catch (err) {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      console.error('Erreur candidature bénévole:', err)
+      setError(err?.message ? `Erreur: ${err.message}` : 'Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setSending(false)
     }
@@ -87,7 +128,7 @@ export default function Benevoles() {
             </p>
           </div>
 
-          <a
+          
             href="/carnet-terrain/"
             target="_blank"
             rel="noopener noreferrer"
