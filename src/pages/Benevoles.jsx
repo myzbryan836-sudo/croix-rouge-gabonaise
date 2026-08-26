@@ -105,7 +105,8 @@ export default function Benevoles() {
       setPhotoPreview('')
     } catch (err) {
       console.error('Erreur candidature bénévole:', err)
-      setError(err?.message ? `Erreur: ${err.message}` : 'Une erreur est survenue. Veuillez réessayer.')
+      const details = err?.message || err?.error_description || err?.code || (() => { try { return JSON.stringify(err) } catch { return String(err) } })()
+      setError(`Erreur debug: ${details}`)
     } finally {
       setSending(false)
     }
