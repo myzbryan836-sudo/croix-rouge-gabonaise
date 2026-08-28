@@ -104,9 +104,9 @@ export default function Benevoles() {
       setPhotoFile(null)
       setPhotoPreview('')
     } catch (err) {
-      console.error('Erreur candidature bénévole:', err)
-      const details = err?.message || err?.error_description || err?.code || (() => { try { return JSON.stringify(err) } catch { return String(err) } })()
-      setError(`Erreur debug: ${details}`)
+      console.error('Erreur candidature benevole:', err)
+      const details = err && err.message ? err.message : 'inconnue'
+      setError('Erreur debug: ' + details)
     } finally {
       setSending(false)
     }
@@ -118,14 +118,14 @@ export default function Benevoles() {
         <span className="eyebrow mb-2 block">Rejoignez-nous</span>
         <h1 className="section-title mb-4">Devenir volontaire</h1>
         <p className="text-cr-dark/60 mb-6">
-          Rejoignez un réseau engagé de volontaires présents dans toutes les provinces du Gabon. Formation assurée, encadrement de terrain.
+          Rejoignez un reseau engage de volontaires presents dans toutes les provinces du Gabon. Formation assuree, encadrement de terrain.
         </p>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <p className="font-display uppercase font-extrabold text-sm mb-1">App « Carnet de terrain »</p>
+            <p className="font-display uppercase font-extrabold text-sm mb-1">App Carnet de terrain</p>
             <p className="text-cr-dark/60 text-sm">
-              Application dédiée aux volontaires pour remonter les signalements depuis le terrain, même sans connexion internet.
+              Application dediee aux volontaires pour remonter les signalements depuis le terrain, meme sans connexion internet.
             </p>
           </div>
 
@@ -143,8 +143,8 @@ export default function Benevoles() {
           {sent ? (
             <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-10 text-center shadow-sm">
               <CheckCircle2 className="mx-auto text-green-600 mb-4" size={56} />
-              <h2 className="font-display uppercase font-extrabold text-2xl mb-2">Candidature envoyée</h2>
-              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre équipe des ressources volontaires vous recontactera très prochainement.</p>
+              <h2 className="font-display uppercase font-extrabold text-2xl mb-2">Candidature envoyee</h2>
+              <p className="text-cr-dark/60">Merci pour votre engagement ! Notre equipe des ressources volontaires vous recontactera tres prochainement.</p>
             </motion.div>
           ) : (
             <motion.form key="form" onSubmit={handleSubmit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
@@ -157,12 +157,12 @@ export default function Benevoles() {
               <div className="grid md:grid-cols-2 gap-3">
                 <input name="email" type="email" value={form.email} onChange={handleChange} required placeholder="Email"
                   className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
-                <input name="telephone" value={form.telephone} onChange={handleChange} required placeholder="Téléphone"
+                <input name="telephone" value={form.telephone} onChange={handleChange} required placeholder="Telephone"
                   className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red" />
               </div>
 
               <div>
-                <p className="font-semibold text-sm mb-2">Disponibilités</p>
+                <p className="font-semibold text-sm mb-2">Disponibilites</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {DISPONIBILITES.map((d) => (
                     <button type="button" key={d.value} onClick={() => toggleDispo(d.value)}
@@ -173,27 +173,27 @@ export default function Benevoles() {
                 </div>
               </div>
 
-              <textarea name="competences" value={form.competences} onChange={handleChange} rows={2} placeholder="Compétences (premiers secours, logistique, communication...)"
+              <textarea name="competences" value={form.competences} onChange={handleChange} rows={2} placeholder="Competences (premiers secours, logistique, communication...)"
                 className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red resize-none" />
               <textarea name="motivation" value={form.motivation} onChange={handleChange} required rows={3} placeholder="Votre motivation"
                 className="w-full border border-cr-dark/15 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cr-red resize-none" />
 
               <div>
-                <p className="font-semibold text-sm mb-2">Photo d'identité</p>
+                <p className="font-semibold text-sm mb-2">Photo d'identite</p>
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-32 rounded-lg bg-cr-gray border border-cr-dark/15 overflow-hidden flex items-center justify-center flex-shrink-0">
                     {photoPreview ? (
-                      <img src={photoPreview} alt="Aperçu" className="w-full h-full object-cover" />
+                      <img src={photoPreview} alt="Apercu" className="w-full h-full object-cover" />
                     ) : (
                       <Camera className="text-cr-dark/30" size={28} />
                     )}
                   </div>
                   <label className="flex items-center gap-2 text-xs font-semibold text-cr-red cursor-pointer border border-cr-red rounded-lg px-4 py-2.5 w-fit">
-                    <Camera size={14} /> {photoFile ? 'Changer la photo' : 'Téléverser une photo'}
+                    <Camera size={14} /> {photoFile ? 'Changer la photo' : 'Televerser une photo'}
                     <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                   </label>
                 </div>
-                <p className="text-xs text-cr-dark/40 mt-1.5">Format portrait recommandé, visage bien visible.</p>
+                <p className="text-xs text-cr-dark/40 mt-1.5">Format portrait recommande, visage bien visible.</p>
               </div>
 
               {error && <p className="text-sm text-cr-red">{error}</p>}
