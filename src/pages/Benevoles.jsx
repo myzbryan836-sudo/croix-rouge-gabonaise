@@ -129,7 +129,7 @@ export default function Benevoles() {
             </p>
           </div>
 
-          
+          <a
             href="/carnet-terrain/"
             target="_blank"
             rel="noopener noreferrer"
