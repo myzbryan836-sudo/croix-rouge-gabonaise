@@ -6,6 +6,7 @@ import LoadingSpinner from '../shared/LoadingSpinner'
 
 const SECTIONS = [
   { cle: 'histoire', titre: 'Notre histoire' },
+  { cle: 'grandes_dates', titre: 'Nos grandes dates' },
   { cle: 'mission', titre: 'Notre mission' },
   { cle: 'vision', titre: 'Notre vision' },
   { cle: 'valeurs', titre: 'Nos valeurs' },
