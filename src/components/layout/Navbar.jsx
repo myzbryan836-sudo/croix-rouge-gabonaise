@@ -24,6 +24,7 @@ const MENU = [
     label: 'Qui sommes-nous ?',
     children: [
       { to: '/qui-sommes-nous#histoire', label: 'Notre histoire' },
+      { to: '/qui-sommes-nous#grandes_dates', label: 'Nos grandes dates' },
       { to: '/qui-sommes-nous#mission', label: 'Notre mission' },
       { to: '/qui-sommes-nous#vision', label: 'Notre vision' },
       { to: '/qui-sommes-nous#valeurs', label: 'Nos valeurs' },
