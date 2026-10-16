@@ -90,7 +90,7 @@ export default function DataTable({ collectionName, fields, data, titleField = '
         empty[f.latField] = ''
         empty[f.lngField] = ''
       } else {
-        empty[f.name] = f.type === 'list' ? [] : ''
+        empty[f.name] = (f.type === 'list' || f.type === 'gallery') ? [] : ''
       }
     })
     setEditing(empty)
@@ -104,6 +104,9 @@ export default function DataTable({ collectionName, fields, data, titleField = '
     setSaving(true)
     try {
       const { id, ...payload } = editing
+      fields.forEach((f) => {
+        if ((f.type === 'list' || f.type === 'gallery') && !Array.isArray(payload[f.name])) payload[f.name] = []
+      })
       if (id) {
         const { error } = await supabase.from(collectionName).update(payload).eq('id', id)
         if (error) throw error
