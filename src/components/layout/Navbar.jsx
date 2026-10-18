@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Heart, User, ChevronDown } from 'lucide-react'
+import { Menu, X, Heart, User, ChevronDown, LogOut, ShieldCheck } from 'lucide-react'
 import Logo from '../shared/Logo'
 import { useAuth } from '../../context/AuthContext'
 import NotificationBell from '../shared/NotificationBell'
@@ -127,11 +127,81 @@ function MobileAccordion({ item }) {
   )
 }
 
+function UserMenu({ light }) {
+  const { user, isAdmin, logout } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  if (!user) {
+    return (
+      <Link to="/connexion" aria-label="Connexion" className={`p-2 rounded-full ${light ? 'text-white' : 'text-cr-dark'}`}>
+        <User size={20} />
+      </Link>
+    )
+  }
+
+  const handleLogout = async () => {
+    setOpen(false)
+    await logout()
+    navigate('/')
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Menu du compte"
+        className={`p-2 rounded-full ${light ? 'text-white' : 'text-cr-dark'}`}
+      >
+        <User size={20} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-cr-dark/5 py-2 z-50"
+          >
+            <p className="px-4 py-2 text-xs text-cr-dark/50 truncate">{user.email}</p>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-cr-dark/80 hover:bg-cr-gray hover:text-cr-red transition-colors"
+              >
+                <ShieldCheck size={15} /> Espace admin
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-cr-dark/80 hover:bg-cr-gray hover:text-cr-red transition-colors text-left"
+            >
+              <LogOut size={15} /> Se déconnecter
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -140,6 +210,12 @@ export default function Navbar() {
   }, [])
 
   useEffect(() => setOpen(false), [location.pathname])
+
+  const handleMobileLogout = async () => {
+    setOpen(false)
+    await logout()
+    navigate('/')
+  }
 
   const isHome = location.pathname === '/'
   const light = isHome && !scrolled
@@ -175,9 +251,7 @@ export default function Navbar() {
 
         <div className="hidden lg:flex items-center gap-3">
           {user && <NotificationBell light={light} />}
-          <Link to={isAdmin ? '/admin' : user ? '/' : '/connexion'} className={`p-2 rounded-full ${light ? 'text-white' : 'text-cr-dark'}`}>
-            <User size={20} />
-          </Link>
+          <UserMenu light={light} />
           <Link to="/dons" className="btn-primary">
             <Heart size={16} /> Faire un don
           </Link>
@@ -206,9 +280,25 @@ export default function Navbar() {
                   </NavLink>
                 )
               )}
-              <Link to={isAdmin ? '/admin' : user ? '/' : '/connexion'} className="text-cr-dark font-semibold uppercase tracking-wide py-1">
-                {user ? (isAdmin ? 'Espace admin' : 'Mon compte') : 'Connexion'}
-              </Link>
+              {user ? (
+                <>
+                  {isAdmin && (
+                    <Link to="/admin" className="text-cr-dark font-semibold uppercase tracking-wide py-1">
+                      Espace admin
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleMobileLogout}
+                    className="text-left text-cr-dark font-semibold uppercase tracking-wide py-1"
+                  >
+                    Se déconnecter
+                  </button>
+                </>
+              ) : (
+                <Link to="/connexion" className="text-cr-dark font-semibold uppercase tracking-wide py-1">
+                  Connexion
+                </Link>
+              )}
               <Link to="/dons" className="btn-primary w-full">
                 <Heart size={16} /> Faire un don
               </Link>
