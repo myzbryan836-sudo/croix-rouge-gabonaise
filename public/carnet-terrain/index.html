@@ -2283,6 +2283,42 @@ AdminAuth.init().then(updateAdminUI);
   });
   });
 
+  function ensureRdStyle() {
+    if (!document.getElementById('rd-style')) {
+      const st = document.createElement('style');
+      st.id = 'rd-style';
+      st.textContent = [
+        '.rd-head{margin:0 0 4px}',
+        '.rd-name{font-size:21px;font-weight:800;line-height:1.2;margin:0 0 4px}',
+        '.rd-sub{font-size:13px;opacity:.65;margin:0 0 2px}',
+        '.rd-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
+        '.rd-badge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;background:#f1f3f5;color:#333}',
+        '.rd-badge.red{background:#fdecee;color:#c8102e}',
+        '.rd-badge.amber{background:#fff4e0;color:#b45309}',
+        '.rd-badge.green{background:#e6f4ea;color:#1e7a3c}',
+        '.rd-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}',
+        '.rd-stat{background:#f6f7f9;border-radius:12px;padding:10px 6px;text-align:center}',
+        '.rd-stat b{display:block;font-size:22px;line-height:1.1;color:#c8102e}',
+        '.rd-stat span{font-size:11px;opacity:.7}',
+        '.rd-card{border:1px solid #e6e8ec;border-radius:14px;padding:12px 14px;margin:10px 0}',
+        '.rd-card h4{margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c8102e}',
+        '.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}',
+        '.rd-item small{display:block;font-size:11px;opacity:.6;margin-bottom:2px}',
+        '.rd-item div{font-size:14px;font-weight:600;word-break:break-word}',
+        '.rd-sublabel{font-size:11px;opacity:.6;margin:12px 0 6px}',
+        '.rd-chips{display:flex;flex-wrap:wrap;gap:6px}',
+        '.rd-chip{background:#f1f3f5;border-radius:8px;padding:5px 9px;font-size:13px}',
+        '.rd-chip b{margin-left:5px;color:#c8102e}',
+        '.rd-text{white-space:pre-wrap;font-size:14px;line-height:1.5;margin:0}',
+        '.rd-media img{display:block;max-width:100%;border-radius:10px}',
+        '.rd-media audio{display:block;width:100%;margin-top:10px}',
+        '.rd-item a{color:#c8102e;font-weight:600;text-decoration:none}',
+        '@media (max-width:520px){.rd-grid{grid-template-columns:1fr}}'
+      ].join('');
+      document.head.appendChild(st);
+    }
+  }
+
   function openDetailModal(report) {
     const date = new Date(report.timestamp);
     const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' a ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -2290,20 +2326,44 @@ AdminAuth.init().then(updateAdminUI);
     const needsStr = (report.needs || []).join(', ') || 'Aucun';
     const isTraite = report.status === 'traite';
 
-    document.getElementById('detailModalTitle').textContent = (report.ref || '') + ' - ' + (report.eventType || 'Evenement');
-    document.getElementById('detailModalBody').innerHTML = `
-      <p><strong>Date :</strong> ${escapeHtml(dateStr)}</p>
-      <p><strong>Volontaire :</strong> ${escapeHtml(report.volunteer || '-')}</p>
-      <p><strong>Brigade / Zone :</strong> ${escapeHtml(report.brigade || '-')}</p>
-      <p><strong>Localisation :</strong> ${escapeHtml(report.location || '-')}</p>
-      <p><strong>GPS :</strong> ${escapeHtml(geoStr)}</p>
-      <p><strong>Personnes affectees :</strong> ${escapeHtml(report.affected ? String(report.affected) : '-')}</p>
-      <p><strong>Besoins :</strong> ${escapeHtml(needsStr)}</p>
-      <p><strong>Niveau d'urgence :</strong> ${escapeHtml(report.level || '-')}</p>
-      <p><strong>Statut :</strong> ${isTraite ? 'Traite' : 'Nouveau'}</p>
-      <p><strong>Description :</strong><br>${escapeHtml(report.description || '-')}</p>
-      ${(report.media && report.media.length) ? ('<p><strong>Photos / videos :</strong></p><div class="media-grid">' + report.media.map(m => m.type === 'video' ? ('<div class="media-thumb"><video src="' + m.dataUrl + '" controls></video></div>') : ('<div class="media-thumb"><img src="' + m.dataUrl + '" alt="media"></div>')).join('') + '</div>') : ''}
-    `;
+    {
+      ensureRdStyle();
+      const esc = escapeHtml;
+      const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+      const item = (label, v) => has(v) ? '<div class="rd-item"><small>' + esc(label) + '</small><div>' + esc(String(v)) + '</div></div>' : '';
+      const grid = (parts) => { const h = parts.join(''); return h ? '<div class="rd-grid">' + h + '</div>' : ''; };
+      const card = (title, inner) => inner ? '<div class="rd-card"><h4>' + esc(title) + '</h4>' + inner + '</div>' : '';
+      const stat = (v, label) => '<div class="rd-stat"><b>' + (has(v) ? esc(String(v)) : '\u2013') + '</b><span>' + esc(label) + '</span></div>';
+
+      const d = new Date(report.timestamp);
+      const when = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' \u00e0 ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const needs = Array.isArray(report.needs) ? report.needs.filter(has) : [];
+      const media = Array.isArray(report.media) ? report.media.filter(m => m && has(m.dataUrl)) : [];
+      const lvl = String(report.level || '');
+      const lvlLow = lvl.toLowerCase();
+      const lvlClass = /crit|rouge|vital|haut|elev|urgent/.test(lvlLow) ? 'red' : (/mod|moy|orange|jaune/.test(lvlLow) ? 'amber' : '');
+      const badges = [];
+      if (has(lvl)) badges.push('<span class="rd-badge ' + lvlClass + '">Urgence : ' + esc(lvl) + '</span>');
+      badges.push(isTraite ? '<span class="rd-badge green">Trait\u00e9</span>' : '<span class="rd-badge amber">Nouveau</span>');
+      const gpsOk = report.geo && has(report.geo.lat) && has(report.geo.lng);
+      const gpsHtml = gpsOk ? '<div class="rd-item"><small>Position GPS</small><div><a href="https://www.google.com/maps?q=' + encodeURIComponent(report.geo.lat + ',' + report.geo.lng) + '" target="_blank" rel="noopener">' + esc(report.geo.lat + ', ' + report.geo.lng) + '</a></div></div>' : '';
+      const mediaHtml = media.length ? '<div class="media-grid">' + media.map(m => m.type === 'video' ? ('<div class="media-thumb"><video src="' + m.dataUrl + '" controls></video></div>') : ('<div class="media-thumb"><img src="' + m.dataUrl + '" alt="media"></div>')).join('') + '</div>' : '';
+
+      document.getElementById('detailModalTitle').textContent = (report.ref || '') + ' \u00b7 Signalement';
+      document.getElementById('detailModalBody').innerHTML =
+        '<div class="rd-head">' +
+          '<h3 class="rd-name">' + esc(report.eventType || '\u00c9v\u00e9nement') + '</h3>' +
+          (has(report.brigade) ? '<p class="rd-sub">' + esc(String(report.brigade)) + '</p>' : '') +
+          '<p class="rd-sub">' + esc(when) + (has(report.volunteer) ? ' \u00b7 par ' + esc(String(report.volunteer)) : '') + '</p>' +
+          '<div class="rd-badges">' + badges.join('') + '</div>' +
+        '</div>' +
+        '<div class="rd-stats">' + stat(report.affected, 'Personnes affect\u00e9es') + stat(needs.length, 'Besoins') + stat(media.length, 'Photos / vid\u00e9os') + '</div>' +
+        card('Volontaire et zone', grid([item('Volontaire', report.volunteer), item('Brigade / Zone', report.brigade)])) +
+        card('Localisation', grid([item('Lieu', report.location), gpsHtml])) +
+        card('Description', has(report.description) ? '<p class="rd-text">' + esc(String(report.description)) + '</p>' : '') +
+        card('Besoins identifi\u00e9s', needs.length ? '<div class="rd-chips">' + needs.map(n => '<span class="rd-chip">' + esc(String(n)) + '</span>').join('') + '</div>' : '') +
+        card('Photos et vid\u00e9os', mediaHtml);
+    }
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
 
@@ -2721,38 +2781,7 @@ AdminAuth.init().then(updateAdminUI);
   });
 
     function openRetourDetail(r) {
-    if (!document.getElementById('rd-style')) {
-      const st = document.createElement('style');
-      st.id = 'rd-style';
-      st.textContent = [
-        '.rd-head{margin:0 0 4px}',
-        '.rd-name{font-size:21px;font-weight:800;line-height:1.2;margin:0 0 4px}',
-        '.rd-sub{font-size:13px;opacity:.65;margin:0 0 2px}',
-        '.rd-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
-        '.rd-badge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;background:#f1f3f5;color:#333}',
-        '.rd-badge.red{background:#fdecee;color:#c8102e}',
-        '.rd-badge.amber{background:#fff4e0;color:#b45309}',
-        '.rd-badge.green{background:#e6f4ea;color:#1e7a3c}',
-        '.rd-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}',
-        '.rd-stat{background:#f6f7f9;border-radius:12px;padding:10px 6px;text-align:center}',
-        '.rd-stat b{display:block;font-size:22px;line-height:1.1;color:#c8102e}',
-        '.rd-stat span{font-size:11px;opacity:.7}',
-        '.rd-card{border:1px solid #e6e8ec;border-radius:14px;padding:12px 14px;margin:10px 0}',
-        '.rd-card h4{margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c8102e}',
-        '.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}',
-        '.rd-item small{display:block;font-size:11px;opacity:.6;margin-bottom:2px}',
-        '.rd-item div{font-size:14px;font-weight:600;word-break:break-word}',
-        '.rd-sublabel{font-size:11px;opacity:.6;margin:12px 0 6px}',
-        '.rd-chips{display:flex;flex-wrap:wrap;gap:6px}',
-        '.rd-chip{background:#f1f3f5;border-radius:8px;padding:5px 9px;font-size:13px}',
-        '.rd-chip b{margin-left:5px;color:#c8102e}',
-        '.rd-text{white-space:pre-wrap;font-size:14px;line-height:1.5;margin:0}',
-        '.rd-media img{display:block;max-width:100%;border-radius:10px}',
-        '.rd-media audio{display:block;width:100%;margin-top:10px}',
-        '@media (max-width:520px){.rd-grid{grid-template-columns:1fr}}'
-      ].join('');
-      document.head.appendChild(st);
-    }
+    ensureRdStyle();
 
     const esc = escapeHtml;
     const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
