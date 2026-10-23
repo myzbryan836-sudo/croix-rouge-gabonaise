@@ -2721,33 +2721,92 @@ AdminAuth.init().then(updateAdminUI);
   });
 
     function openRetourDetail(r) {
-    const date = new Date(r.timestamp);
-    const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' a ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const skip = ['id', 'formType', 'timestamp', 'ref'];
-    const label = (k) => k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
-    const isData = (v) => typeof v === 'string' && v.indexOf('data:') === 0;
-    const isPrim = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
-    const fmt = (v) => typeof v === 'boolean' ? (v ? 'Oui' : 'Non') : String(v);
-    const imgs = [];
-    const rows = Object.keys(r).filter(k => skip.indexOf(k) === -1).map(k => {
-      const v = r[k];
-      if (isData(v)) { imgs.push(v); return ''; }
-      if (Array.isArray(v)) {
-        v.forEach(m => {
-          if (isData(m)) imgs.push(m);
-          else if (m && isData(m.dataUrl)) imgs.push(m.dataUrl);
-        });
-        const simple = v.filter(m => isPrim(m) && !isData(m));
-        return simple.length ? '<p><strong>' + escapeHtml(label(k)) + ' :</strong> ' + escapeHtml(simple.map(fmt).join(', ')) + '</p>' : '';
-      }
-      if (!isPrim(v) || v === '') return '';
-      return '<p><strong>' + escapeHtml(label(k)) + ' :</strong> ' + escapeHtml(fmt(v)) + '</p>';
-    }).join('');
+    if (!document.getElementById('rd-style')) {
+      const st = document.createElement('style');
+      st.id = 'rd-style';
+      st.textContent = [
+        '.rd-head{margin:0 0 4px}',
+        '.rd-name{font-size:21px;font-weight:800;line-height:1.2;margin:0 0 4px}',
+        '.rd-sub{font-size:13px;opacity:.65;margin:0 0 2px}',
+        '.rd-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}',
+        '.rd-badge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;background:#f1f3f5;color:#333}',
+        '.rd-badge.red{background:#fdecee;color:#c8102e}',
+        '.rd-badge.amber{background:#fff4e0;color:#b45309}',
+        '.rd-badge.green{background:#e6f4ea;color:#1e7a3c}',
+        '.rd-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}',
+        '.rd-stat{background:#f6f7f9;border-radius:12px;padding:10px 6px;text-align:center}',
+        '.rd-stat b{display:block;font-size:22px;line-height:1.1;color:#c8102e}',
+        '.rd-stat span{font-size:11px;opacity:.7}',
+        '.rd-card{border:1px solid #e6e8ec;border-radius:14px;padding:12px 14px;margin:10px 0}',
+        '.rd-card h4{margin:0 0 10px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c8102e}',
+        '.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}',
+        '.rd-item small{display:block;font-size:11px;opacity:.6;margin-bottom:2px}',
+        '.rd-item div{font-size:14px;font-weight:600;word-break:break-word}',
+        '.rd-sublabel{font-size:11px;opacity:.6;margin:12px 0 6px}',
+        '.rd-chips{display:flex;flex-wrap:wrap;gap:6px}',
+        '.rd-chip{background:#f1f3f5;border-radius:8px;padding:5px 9px;font-size:13px}',
+        '.rd-chip b{margin-left:5px;color:#c8102e}',
+        '.rd-text{white-space:pre-wrap;font-size:14px;line-height:1.5;margin:0}',
+        '.rd-media img{display:block;max-width:100%;border-radius:10px}',
+        '.rd-media audio{display:block;width:100%;margin-top:10px}',
+        '@media (max-width:520px){.rd-grid{grid-template-columns:1fr}}'
+      ].join('');
+      document.head.appendChild(st);
+    }
 
-    document.getElementById('detailModalTitle').textContent = (r.ref || '') + ' - Fiche famille';
+    const esc = escapeHtml;
+    const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+    const item = (label, v) => has(v) ? '<div class="rd-item"><small>' + esc(label) + '</small><div>' + esc(String(v)) + '</div></div>' : '';
+    const grid = (parts) => { const h = parts.join(''); return h ? '<div class="rd-grid">' + h + '</div>' : ''; };
+    const card = (title, inner) => inner ? '<div class="rd-card"><h4>' + esc(title) + '</h4>' + inner + '</div>' : '';
+    const chips = (list) => list.length ? '<div class="rd-chips">' + list.map(c => '<span class="rd-chip">' + c + '</span>').join('') + '</div>' : '';
+    const withCount = (label, v) => esc(label) + '<b>' + esc(String(v)) + '</b>';
+    const ageChips = (list) => (Array.isArray(list) ? list : []).filter(a => a && Number(a.value) > 0).map(a => withCount(String(a.label), a.value));
+    const stat = (v, label) => '<div class="rd-stat"><b>' + (has(v) ? esc(String(v)) : '\u2013') + '</b><span>' + esc(label) + '</span></div>';
+    const textBlock = (title, v) => has(v) ? '<div class="rd-item" style="margin-bottom:10px"><small>' + esc(title) + '</small><p class="rd-text">' + esc(String(v)) + '</p></div>' : '';
+
+    const d = new Date(r.timestamp);
+    const dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' \u00e0 ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const isVuln = String(r.vulnerable || '').toLowerCase() === 'oui';
+    const telHref = String(r.telephone || '').replace(/[^0-9+]/g, '');
+    const telItem = has(r.telephone) ? '<div class="rd-item"><small>T\u00e9l\u00e9phone</small><div><a href="tel:' + telHref + '">' + esc(String(r.telephone)) + '</a></div></div>' : '';
+
+    const badges = [];
+    if (has(r.sinistre)) badges.push('<span class="rd-badge red">' + esc(String(r.sinistre)) + '</span>');
+    if (has(r.vulnerable)) badges.push(isVuln ? '<span class="rd-badge amber">Famille vuln\u00e9rable</span>' : '<span class="rd-badge green">Non vuln\u00e9rable</span>');
+    if (has(r.handicap) && String(r.handicap).toLowerCase() !== 'aucun') badges.push('<span class="rd-badge">Handicap : ' + esc(String(r.handicap)) + '</span>');
+
+    const place = [r.quartier, r.ville].filter(has).join(', ');
+    const young = ageChips(r.enfants0a8);
+    const older = ageChips(r.enfants9a13);
+    const vulns = (Array.isArray(r.personnesVulnerables) ? r.personnesVulnerables : []).filter(has).map(v => esc(String(v)));
+    const schooling = [['Pr\u00e9-primaire', r.prePrimaire], ['Primaire', r.primaire], ['Secondaire', r.secondaire], ['Sup\u00e9rieur', r.superieur]].filter(p => has(p[1])).map(p => withCount(p[0], p[1]));
+    const compo = grid([item('Femmes en \u00e2ge de procr\u00e9er', r.femmesEnAgeProcreer)]) +
+      (young.length ? '<div class="rd-sublabel">Enfants de 0 \u00e0 8 ans</div>' + chips(young) : '') +
+      (older.length ? '<div class="rd-sublabel">Enfants de 9 \u00e0 13 ans</div>' + chips(older) : '');
+
+    const photoOk = has(r.photo) && String(r.photo).indexOf('data:image') === 0;
+    const audioOk = has(r.audio) && String(r.audio).indexOf('data:') === 0;
+    const media = (photoOk ? '<div class="rd-media"><img src="' + r.photo + '" alt="Photo de la fiche"></div>' : '') +
+      (audioOk ? '<div class="rd-media"><div class="rd-sublabel">Enregistrement vocal</div><audio controls src="' + r.audio + '"></audio></div>' : '');
+
+    document.getElementById('detailModalTitle').textContent = (r.ref || '') + ' \u00b7 Fiche famille';
     document.getElementById('detailModalBody').innerHTML =
-      '<p><strong>Date :</strong> ' + escapeHtml(dateStr) + '</p>' + rows +
-      (imgs.length ? '<p><strong>Photos :</strong></p><div class="media-grid">' + imgs.map(u => '<div class="media-thumb"><img src="' + u + '" alt="photo"></div>').join('') + '</div>' : '');
+      '<div class="rd-head">' +
+        '<h3 class="rd-name">' + esc(r.chefFamille || 'Famille non nomm\u00e9e') + '</h3>' +
+        (place ? '<p class="rd-sub">' + esc(place) + '</p>' : '') +
+        '<p class="rd-sub">' + esc(dateStr) + '</p>' +
+        (badges.length ? '<div class="rd-badges">' + badges.join('') + '</div>' : '') +
+      '</div>' +
+      '<div class="rd-stats">' + stat(r.tailleMenage, 'Personnes au m\u00e9nage') + stat(r.repasParJour, 'Repas par jour') + stat(r.enfantsSansActe, 'Sans acte de naissance') + '</div>' +
+      card('Chef de famille', grid([item('Nom', r.chefFamille), item('\u00c2ge', has(r.age) ? r.age + ' ans' : ''), telItem, item('Nationalit\u00e9', r.nationalite), item('Profession', r.profession), item('Situation matrimoniale', r.matrimonial)])) +
+      card('Localisation', grid([item('Province', r.province), item('Ville', r.ville), item('Arrondissement', r.arrondissement), item('Quartier', r.quartier)])) +
+      card('Sinistre et logement', grid([item('Type de sinistre', r.sinistre), item('Type de maison', r.typeMaison), item("Statut d'occupation", r.statutOccupant)])) +
+      card('Composition du m\u00e9nage', compo) +
+      card('Scolarisation', chips(schooling)) +
+      card('Personnes vuln\u00e9rables', chips(vulns)) +
+      card('Retour et suggestions', textBlock('Retour sur la situation observ\u00e9e', r.feedback) + textBlock('Suggestions', r.suggestions)) +
+      card('Pi\u00e8ces jointes', media);
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
     if (markBtn) markBtn.style.display = 'none';
