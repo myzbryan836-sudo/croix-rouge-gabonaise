@@ -2720,6 +2720,52 @@ AdminAuth.init().then(updateAdminUI);
     retourForm.style.display = '';
   });
 
+    function openRetourDetail(r) {
+    const date = new Date(r.timestamp);
+    const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' a ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const skip = ['id', 'formType', 'timestamp', 'ref'];
+    const label = (k) => k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
+    const isData = (v) => typeof v === 'string' && v.indexOf('data:') === 0;
+    const isPrim = (v) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+    const fmt = (v) => typeof v === 'boolean' ? (v ? 'Oui' : 'Non') : String(v);
+    const imgs = [];
+    const rows = Object.keys(r).filter(k => skip.indexOf(k) === -1).map(k => {
+      const v = r[k];
+      if (isData(v)) { imgs.push(v); return ''; }
+      if (Array.isArray(v)) {
+        v.forEach(m => {
+          if (isData(m)) imgs.push(m);
+          else if (m && isData(m.dataUrl)) imgs.push(m.dataUrl);
+        });
+        const simple = v.filter(m => isPrim(m) && !isData(m));
+        return simple.length ? '<p><strong>' + escapeHtml(label(k)) + ' :</strong> ' + escapeHtml(simple.map(fmt).join(', ')) + '</p>' : '';
+      }
+      if (!isPrim(v) || v === '') return '';
+      return '<p><strong>' + escapeHtml(label(k)) + ' :</strong> ' + escapeHtml(fmt(v)) + '</p>';
+    }).join('');
+
+    document.getElementById('detailModalTitle').textContent = (r.ref || '') + ' - Fiche famille';
+    document.getElementById('detailModalBody').innerHTML =
+      '<p><strong>Date :</strong> ' + escapeHtml(dateStr) + '</p>' + rows +
+      (imgs.length ? '<p><strong>Photos :</strong></p><div class="media-grid">' + imgs.map(u => '<div class="media-thumb"><img src="' + u + '" alt="photo"></div>').join('') + '</div>' : '');
+
+    const markBtn = document.getElementById('detailMarkTreatedBtn');
+    if (markBtn) markBtn.style.display = 'none';
+    const delBtn = document.getElementById('detailDeleteBtn');
+    if (delBtn) delBtn.style.display = 'none';
+    document.getElementById('detailModal').classList.add('show');
+  }
+
+  const retourHistoryEl = document.getElementById('retourHistory');
+  if (retourHistoryEl) {
+    retourHistoryEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.retour-item');
+      if (!item) return;
+      const r = (window.__retours || []).find(x => x.id === item.dataset.id);
+      if (r) openRetourDetail(r);
+    });
+  }
+
   async function loadRetourHistory() {
     const el = document.getElementById('retourHistory');
     if (!AdminAuth.isAdmin) { el.innerHTML = ''; return; }
@@ -2732,10 +2778,11 @@ AdminAuth.init().then(updateAdminUI);
         el.innerHTML = '<h3>Dernières fiches enregistrées</h3><div class="empty-state">Aucune fiche pour le moment.</div>';
         return;
       }
+      window.__retours = retours;
       const items = retours.slice(0, 12).map(r => {
         const date = new Date(r.timestamp);
         const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-        return `<div class="retour-item">
+        return `<div class="retour-item" data-id="${escapeHtml(r.id)}" style="cursor:pointer"><span style="float:right;font-size:12px;color:#c8102e;font-weight:600">Voir detail &rsaquo;</span>
           <strong>${escapeHtml(r.chefFamille || 'Famille non nommée')}</strong> — ${escapeHtml(r.ville || '')}${r.quartier ? ', ' + escapeHtml(r.quartier) : ''}
           <div class="rt-meta">${escapeHtml(r.ref)} · ${dateStr} · ${escapeHtml(r.sinistre || '')} · Ménage: ${escapeHtml(String(r.tailleMenage || '—'))} pers.</div>
         </div>`;
