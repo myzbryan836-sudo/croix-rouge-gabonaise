@@ -16,5 +16,5 @@ const FIELDS = [
 export default function DirigeantsTab() {
   const { data, loading } = useSupabaseCollection('dirigeants', { orderByField: 'ordre', orderDirection: 'asc' })
   if (loading) return <LoadingSpinner />
-  return <DataTable collectionName="dirigeants" fields={FIELDS} data={data} titleField="nom" />
+  return <DataTable collectionName="dirigeants" fields={FIELDS} data={data} titleField="fonction" />
 }
