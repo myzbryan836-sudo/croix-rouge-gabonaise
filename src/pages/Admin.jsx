@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet, Star } from 'lucide-react'
+import { LayoutDashboard, Newspaper, Flag, Megaphone, FileText, Heart, HandHeart, AlertTriangle, LogOut, Share2, Phone, BookOpen, Handshake, Images, MapPinned, Info, Wallet, Star, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Logo from '../components/shared/Logo'
 import { useAuth } from '../context/AuthContext'
@@ -20,6 +20,7 @@ import GalerieTab from '../components/admin/GalerieTab'
 import ZonesInterventionTab from '../components/admin/ZonesInterventionTab'
 import AProposTab from '../components/admin/AProposTab'
 import AvisTab from '../components/admin/AvisTab'
+import DirigeantsTab from '../components/admin/DirigeantsTab'
 import SlidesAccueilTab from '../components/admin/SlidesAccueilTab'
 
 const TABS = [
@@ -34,6 +35,7 @@ const TABS = [
   { key: 'galerie', label: 'Galerie', icon: Images, Comp: GalerieTab },
   { key: 'ressources', label: 'Ressources', icon: BookOpen, Comp: RessourcesTab },
   { key: 'apropos', label: 'Qui sommes-nous', icon: Info, Comp: AProposTab },
+  { key: 'dirigeants', label: 'Dirigeants', icon: Users, Comp: DirigeantsTab },
   { key: 'contenus', label: 'Contenus', icon: FileText, Comp: ContenusTab },
   { key: 'reseaux', label: 'Réseaux sociaux', icon: Share2, Comp: ReseauxSociauxTab },
   { key: 'contact', label: 'Contact', icon: Phone, Comp: ContactTab },
