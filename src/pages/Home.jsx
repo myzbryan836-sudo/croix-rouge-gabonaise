@@ -6,6 +6,7 @@ import MissionsSection from '../components/home/MissionsSection'
 import PartnersSection from '../components/home/PartnersSection'
 import CTASection from '../components/home/CTASection'
 import LatestArticles from '../components/home/LatestArticles'
+import DirigeantsSection from '../components/home/DirigeantsSection'
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <PartnersSection />
       <CTASection />
       <LatestArticles />
+      <DirigeantsSection />
     </>
   )
 }
