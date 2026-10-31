@@ -2147,6 +2147,7 @@ AdminAuth.init().then(updateAdminUI);
     try {
       await Store.add(report);
       saveMyReportRef(report);
+      exportRecordFile(report);
       stampRef.textContent = refShort;
       form.style.display = 'none';
       stampOverlay.classList.add('show');
@@ -2520,6 +2521,58 @@ AdminAuth.init().then(updateAdminUI);
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
   // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
   // déjà été traités par un admin. ---
+  function exportRecordFile(rec) {
+    try {
+      if (localStorage.getItem('rc_auto_export') === 'off') return;
+      const LABELS = {
+        ref: 'R\u00e9f\u00e9rence', timestamp: 'Date', volunteer: 'Volontaire', brigade: 'Brigade / Zone',
+        eventType: 'Type d\u2019\u00e9v\u00e9nement', description: 'Description', affected: 'Personnes affect\u00e9es',
+        location: 'Localisation', geo: 'GPS', needs: 'Besoins', level: 'Niveau d\u2019urgence', status: 'Statut',
+        sinistre: 'Sinistre', vulnerable: 'Famille vuln\u00e9rable', province: 'Province', ville: 'Ville',
+        arrondissement: 'Arrondissement', quartier: 'Quartier', chefFamille: 'Chef de famille', age: '\u00c2ge',
+        telephone: 'T\u00e9l\u00e9phone', nationalite: 'Nationalit\u00e9', profession: 'Profession',
+        matrimonial: 'Situation matrimoniale', handicap: 'Handicap', tailleMenage: 'Taille du m\u00e9nage',
+        repasParJour: 'Repas par jour', enfants0a8: 'Enfants 0-8 ans', enfants9a13: 'Enfants 9-13 ans',
+        prePrimaire: 'Pr\u00e9-primaire', primaire: 'Primaire', secondaire: 'Secondaire', superieur: 'Sup\u00e9rieur',
+        personnesVulnerables: 'Personnes vuln\u00e9rables', enfantsSansActe: 'Enfants sans acte de naissance',
+        femmesEnAgeProcreer: 'Femmes en \u00e2ge de procr\u00e9er', typeMaison: 'Type de maison',
+        statutOccupant: 'Statut d\u2019occupation', feedback: 'Retour sur la situation', suggestions: 'Suggestions'
+      };
+      const skip = ['id', 'formType', 'photo', 'audio', 'media'];
+      const val = (k, v) => {
+        if (v === null || v === undefined) return '';
+        if (k === 'timestamp') { const d = new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleString('fr-FR'); }
+        if (k === 'geo') return (v && v.lat !== undefined) ? v.lat + ',' + v.lng : '';
+        if (Array.isArray(v)) return v.map(x => {
+          if (x && typeof x === 'object') return (x.label !== undefined && Number(x.value) > 0) ? x.label + ': ' + x.value : '';
+          return String(x);
+        }).filter(Boolean).join(' | ');
+        if (typeof v === 'object') return '';
+        return String(v);
+      };
+      const safe = (s) => /^[=@]|^[+\-](?![0-9 ])/.test(s) ? "'" + s : s;
+      const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+      const keys = Object.keys(rec).filter(k => skip.indexOf(k) === -1);
+      const attached = [];
+      if (rec.photo) attached.push('photo');
+      if (rec.audio) attached.push('audio vocal');
+      if (Array.isArray(rec.media) && rec.media.length) attached.push(rec.media.length + ' photo(s)/vid\u00e9o(s)');
+      const head = keys.map(k => q(LABELS[k] || k)).concat(q('Pi\u00e8ces jointes (non incluses)')).join(';');
+      const row = keys.map(k => q(safe(val(k, rec[k])))).concat(q(attached.join(', '))).join(';');
+      const csv = '\uFEFF' + head + '\r\n' + row + '\r\n';
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const kind = rec.formType === 'retour' ? 'fiche-famille' : 'signalement';
+      a.href = url;
+      a.download = 'carnet-terrain_' + kind + '_' + String(rec.ref || Date.now()).replace('#', '') + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) { /* l'export ne doit jamais bloquer l'enregistrement */ }
+  }
+
   function saveMyReportRef(report) {
     const mine = JSON.parse(localStorage.getItem('rc_mes_signalements') || '[]');
     mine.unshift({ id: report.id, ref: report.ref, eventType: report.eventType, timestamp: report.timestamp });
@@ -2752,6 +2805,7 @@ AdminAuth.init().then(updateAdminUI);
 
     try {
       await Store.add(record);
+      exportRecordFile(record);
       document.getElementById('r_stampRef').textContent = refShort;
       retourForm.style.display = 'none';
       rStampOverlay.classList.add('show');
