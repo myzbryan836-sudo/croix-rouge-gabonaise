@@ -2364,9 +2364,11 @@ AdminAuth.init().then(updateAdminUI);
         card('Description', has(report.description) ? '<p class="rd-text">' + esc(String(report.description)) + '</p>' : '') +
         card('Besoins identifi\u00e9s', needs.length ? '<div class="rd-chips">' + needs.map(n => '<span class="rd-chip">' + esc(String(n)) + '</span>').join('') + '</div>' : '') +
         card('Photos et vid\u00e9os', mediaHtml) +
-        '<div style="margin-top:14px"><button type="button" class="modal-btn secondary" id="rdDlCsv" style="width:100%">T\u00e9l\u00e9charger le signalement (CSV)</button></div>';
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px"><button type="button" class="modal-btn" id="rdDlZip" style="flex:1 1 auto">T\u00e9l\u00e9charger le dossier complet (ZIP)</button><button type="button" class="modal-btn secondary" id="rdDlCsv" style="flex:1 1 auto">T\u00e9l\u00e9charger le CSV</button></div>';
       const bCsv = document.getElementById('rdDlCsv');
       if (bCsv) bCsv.onclick = () => exportRecordFile(report, true);
+      const bZip = document.getElementById('rdDlZip');
+      if (bZip) bZip.onclick = () => downloadFullPackage(report);
     }
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
@@ -2524,6 +2526,96 @@ AdminAuth.init().then(updateAdminUI);
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
   // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
   // déjà été traités par un admin. ---
+  function crc32(bytes) {
+    if (!crc32.table) {
+      crc32.table = [];
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        crc32.table[n] = c >>> 0;
+      }
+    }
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) crc = crc32.table[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function makeZip(files) {
+    const enc = new TextEncoder();
+    const chunks = [];
+    const central = [];
+    let offset = 0;
+    const u16 = (v) => [v & 255, (v >>> 8) & 255];
+    const u32 = (v) => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+    const now = new Date();
+    const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    files.forEach(f => {
+      const name = enc.encode(f.name);
+      const crc = crc32(f.data);
+      const size = f.data.length;
+      const local = new Uint8Array([0x50, 0x4b, 0x03, 0x04, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(dosTime), ...u16(dosDate), ...u32(crc), ...u32(size), ...u32(size), ...u16(name.length), ...u16(0)]);
+      chunks.push(local, name, f.data);
+      central.push(new Uint8Array([0x50, 0x4b, 0x01, 0x02, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(dosTime), ...u16(dosDate), ...u32(crc), ...u32(size), ...u32(size), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset)]), name);
+      offset += local.length + name.length + size;
+    });
+    let centralSize = 0;
+    central.forEach(p => { centralSize += p.length; });
+    const end = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(centralSize), ...u32(offset), ...u16(0)]);
+    return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+  }
+
+  function dataUrlToBytes(dataUrl) {
+    const i = dataUrl.indexOf(',');
+    const meta = dataUrl.slice(5, i);
+    const payload = dataUrl.slice(i + 1);
+    const mime = meta.split(';')[0] || 'application/octet-stream';
+    if (/;base64$/i.test(meta)) {
+      const bin = atob(payload);
+      const out = new Uint8Array(bin.length);
+      for (let k = 0; k < bin.length; k++) out[k] = bin.charCodeAt(k);
+      return { bytes: out, mime: mime };
+    }
+    return { bytes: new TextEncoder().encode(decodeURIComponent(payload)), mime: mime };
+  }
+
+  function extFromMime(mime) {
+    const known = { 'image/jpeg': 'jpg', 'audio/mpeg': 'mp3', 'video/quicktime': 'mov', 'audio/x-m4a': 'm4a', 'audio/mp4': 'm4a', 'video/x-matroska': 'mkv' };
+    if (known[mime]) return known[mime];
+    const sub = String(mime).split('/')[1] || 'bin';
+    return sub.split('+')[0];
+  }
+
+  function downloadFullPackage(rec) {
+    try {
+      const refName = String(rec.ref || Date.now()).replace('#', '');
+      const kind = rec.formType === 'retour' ? 'fiche-famille' : 'signalement';
+      const csv = exportRecordFile(rec, true, true) || '';
+      const files = [{ name: 'carnet-terrain_' + kind + '_' + refName + '.csv', data: new TextEncoder().encode(csv) }];
+      const addMedia = (dataUrl, base) => {
+        if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0) return;
+        const res = dataUrlToBytes(dataUrl);
+        files.push({ name: base + '.' + extFromMime(res.mime), data: res.bytes });
+      };
+      if (rec.photo) addMedia(rec.photo, 'photo');
+      if (rec.audio) addMedia(rec.audio, 'audio');
+      if (Array.isArray(rec.media)) rec.media.forEach((m, i) => {
+        if (m && m.dataUrl) addMedia(m.dataUrl, (m.type === 'video' ? 'video_' : 'photo_') + (i + 1));
+      });
+      const blob = makeZip(files);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'carnet-terrain_' + kind + '_' + refName + '_complet.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+    } catch (e) {
+      alert('Impossible de pr\u00e9parer le dossier complet.');
+    }
+  }
+
   function downloadDataUrl(dataUrl, baseName) {
     try {
       const m = /^data:([^;,]+)/.exec(dataUrl) || [];
@@ -2542,7 +2634,7 @@ AdminAuth.init().then(updateAdminUI);
     } catch (e) { /* ignore */ }
   }
 
-  function exportRecordFile(rec, force) {
+  function exportRecordFile(rec, force, returnCsv) {
     try {
       if (!force && localStorage.getItem('rc_auto_export') === 'off') return;
       const LABELS = {
@@ -2581,6 +2673,7 @@ AdminAuth.init().then(updateAdminUI);
       const head = keys.map(k => q(LABELS[k] || k)).concat(q('Pi\u00e8ces jointes (non incluses)')).join(';');
       const row = keys.map(k => q(safe(val(k, rec[k])))).concat(q(attached.join(', '))).join(';');
       const csv = '\uFEFF' + head + '\r\n' + row + '\r\n';
+      if (returnCsv) return csv;
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2911,7 +3004,7 @@ AdminAuth.init().then(updateAdminUI);
       card('Personnes vuln\u00e9rables', chips(vulns)) +
       card('Retour et suggestions', textBlock('Retour sur la situation observ\u00e9e', r.feedback) + textBlock('Suggestions', r.suggestions)) +
       card('Pi\u00e8ces jointes', media) +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+      '<div style="margin-top:14px"><button type="button" class="modal-btn" id="rdDlZip" style="width:100%">T\u00e9l\u00e9charger le dossier complet (ZIP)</button></div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">' +
         '<button type="button" class="modal-btn secondary" id="rdDlCsv" style="flex:1 1 auto">T\u00e9l\u00e9charger la fiche (CSV)</button>' +
         (photoOk ? '<button type="button" class="modal-btn secondary" id="rdDlPhoto" style="flex:1 1 auto">T\u00e9l\u00e9charger la photo</button>' : '') +
         (audioOk ? '<button type="button" class="modal-btn secondary" id="rdDlAudio" style="flex:1 1 auto">T\u00e9l\u00e9charger l\u2019audio</button>' : '') +
@@ -2923,6 +3016,8 @@ AdminAuth.init().then(updateAdminUI);
     if (bPhoto) bPhoto.onclick = () => downloadDataUrl(r.photo, 'carnet-terrain_photo_' + refName);
     const bAudio = document.getElementById('rdDlAudio');
     if (bAudio) bAudio.onclick = () => downloadDataUrl(r.audio, 'carnet-terrain_audio_' + refName);
+    const bZip = document.getElementById('rdDlZip');
+    if (bZip) bZip.onclick = () => downloadFullPackage(r);
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
     if (markBtn) markBtn.style.display = 'none';
