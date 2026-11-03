@@ -2419,6 +2419,7 @@ AdminAuth.init().then(updateAdminUI);
   });
   document.getElementById('detailModal').addEventListener('click', (e) => {
     if (e.target.id === 'detailModal') document.getElementById('detailModal').classList.remove('show');
+  });
 
   // --- Gestion des photos/videos jointes au signalement ---
   let selectedMedia = [];
@@ -2516,7 +2517,6 @@ AdminAuth.init().then(updateAdminUI);
     selectedMedia = [];
     renderMediaGrid();
   }
-  });
 
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
   // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
