@@ -2363,7 +2363,10 @@ AdminAuth.init().then(updateAdminUI);
         card('Localisation', grid([item('Lieu', report.location), gpsHtml])) +
         card('Description', has(report.description) ? '<p class="rd-text">' + esc(String(report.description)) + '</p>' : '') +
         card('Besoins identifi\u00e9s', needs.length ? '<div class="rd-chips">' + needs.map(n => '<span class="rd-chip">' + esc(String(n)) + '</span>').join('') + '</div>' : '') +
-        card('Photos et vid\u00e9os', mediaHtml);
+        card('Photos et vid\u00e9os', mediaHtml) +
+        '<div style="margin-top:14px"><button type="button" class="modal-btn secondary" id="rdDlCsv" style="width:100%">T\u00e9l\u00e9charger le signalement (CSV)</button></div>';
+      const bCsv = document.getElementById('rdDlCsv');
+      if (bCsv) bCsv.onclick = () => exportRecordFile(report, true);
     }
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
@@ -2521,9 +2524,27 @@ AdminAuth.init().then(updateAdminUI);
   // --- Suivi côté volontaire : garde en mémoire sur cet appareil les
   // signalements qu'il a lui-même transmis, pour lui montrer s'ils ont
   // déjà été traités par un admin. ---
-  function exportRecordFile(rec) {
+  function downloadDataUrl(dataUrl, baseName) {
     try {
-      if (localStorage.getItem('rc_auto_export') === 'off') return;
+      const m = /^data:([^;,]+)/.exec(dataUrl) || [];
+      const sub = String(m[1] || 'application/octet-stream').split('/')[1] || 'bin';
+      const ext = sub === 'jpeg' ? 'jpg' : sub.split('+')[0];
+      fetch(dataUrl).then(res => res.blob()).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = baseName + '.' + ext;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      });
+    } catch (e) { /* ignore */ }
+  }
+
+  function exportRecordFile(rec, force) {
+    try {
+      if (!force && localStorage.getItem('rc_auto_export') === 'off') return;
       const LABELS = {
         ref: 'R\u00e9f\u00e9rence', timestamp: 'Date', volunteer: 'Volontaire', brigade: 'Brigade / Zone',
         eventType: 'Type d\u2019\u00e9v\u00e9nement', description: 'Description', affected: 'Personnes affect\u00e9es',
@@ -2889,7 +2910,19 @@ AdminAuth.init().then(updateAdminUI);
       card('Scolarisation', chips(schooling)) +
       card('Personnes vuln\u00e9rables', chips(vulns)) +
       card('Retour et suggestions', textBlock('Retour sur la situation observ\u00e9e', r.feedback) + textBlock('Suggestions', r.suggestions)) +
-      card('Pi\u00e8ces jointes', media);
+      card('Pi\u00e8ces jointes', media) +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+        '<button type="button" class="modal-btn secondary" id="rdDlCsv" style="flex:1 1 auto">T\u00e9l\u00e9charger la fiche (CSV)</button>' +
+        (photoOk ? '<button type="button" class="modal-btn secondary" id="rdDlPhoto" style="flex:1 1 auto">T\u00e9l\u00e9charger la photo</button>' : '') +
+        (audioOk ? '<button type="button" class="modal-btn secondary" id="rdDlAudio" style="flex:1 1 auto">T\u00e9l\u00e9charger l\u2019audio</button>' : '') +
+      '</div>';
+    const refName = String(r.ref || '').replace('#', '');
+    const bCsv = document.getElementById('rdDlCsv');
+    if (bCsv) bCsv.onclick = () => exportRecordFile(r, true);
+    const bPhoto = document.getElementById('rdDlPhoto');
+    if (bPhoto) bPhoto.onclick = () => downloadDataUrl(r.photo, 'carnet-terrain_photo_' + refName);
+    const bAudio = document.getElementById('rdDlAudio');
+    if (bAudio) bAudio.onclick = () => downloadDataUrl(r.audio, 'carnet-terrain_audio_' + refName);
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
     if (markBtn) markBtn.style.display = 'none';

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cr-terrain-v8';
+const CACHE_NAME = 'cr-terrain-v9';
 const ASSETS = [
   './',
   './index.html',
