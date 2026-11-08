@@ -11,6 +11,11 @@ const CATEGORIES = [
   { value: 'document_officiel', label: 'Documents officiels' },
   { value: 'photo', label: 'Photos' },
   { value: 'video', label: 'Vidéos' },
+  { value: 'guide_pratique', label: 'Guides pratiques' },
+  { value: 'brochure', label: 'Brochures' },
+  { value: 'depliant', label: 'D\u00e9pliants' },
+  { value: 'formulaire', label: 'Formulaires' },
+  { value: 'kit_sensibilisation', label: 'Kits de sensibilisation' },
 ]
 
 function RessourceVisual({ ressource }) {

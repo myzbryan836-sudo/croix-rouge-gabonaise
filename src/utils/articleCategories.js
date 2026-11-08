@@ -4,6 +4,10 @@ export const CATEGORIES = [
   { value: 'rapport', label: 'Rapport' },
   { value: 'publication', label: 'Publication' },
   { value: 'evenement', label: 'Événement' },
+  { value: 'portrait', label: 'Portrait' },
+  { value: 'partenariat', label: 'Partenariat' },
+  { value: 'temoignage', label: 'T\u00e9moignage' },
+  { value: 'sensibilisation', label: 'Sensibilisation' },
 ]
 
 export function categorieLabel(value) {

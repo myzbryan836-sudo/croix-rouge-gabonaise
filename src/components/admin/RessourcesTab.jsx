@@ -5,7 +5,7 @@ import LoadingSpinner from '../shared/LoadingSpinner'
 const FIELDS = [
   { name: 'titre', label: 'Titre', type: 'text' },
   { name: 'description', label: 'Description', type: 'textarea' },
-  { name: 'categorie', label: 'Catégorie', type: 'select', options: ['rapport', 'publication', 'document_officiel', 'photo', 'video'] },
+  { name: 'categorie', label: 'Catégorie', type: 'select', options: ['rapport', 'publication', 'document_officiel', 'photo', 'video', 'guide_pratique', 'brochure', 'depliant', 'formulaire', 'kit_sensibilisation'] },
   { name: 'image_url', label: 'Image de couverture (affichée sur la page Nos ressources)', type: 'image' },
   { name: 'fichier_url', label: 'Fichier (PDF, image ou vidéo à consulter/télécharger)', type: 'image' },
   { name: 'date_publication', label: 'Date de publication', type: 'date' },
