@@ -3036,6 +3036,363 @@ AdminAuth.init().then(updateAdminUI);
     });
   }
 
+  const SYN = { data: [], cases: [], type: 'all', period: 'all', province: 'all', loadedAt: null, ready: false };
+
+  function synNorm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function synEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+  function synIsRetour(r) { return r.formType === 'retour'; }
+  function synIsUrgent(r) { return !synIsRetour(r) && synNorm(r.level).indexOf('elev') === 0 && r.status !== 'traite'; }
+  function synIsVuln(r) { return synIsRetour(r) && synNorm(r.vulnerable) === 'oui'; }
+  function synPeople(r) { return Number(synIsRetour(r) ? r.tailleMenage : r.affected) || 0; }
+
+  function synGeo(r) {
+    let province, ville, quartier;
+    if (synIsRetour(r)) {
+      province = r.province; ville = r.ville; quartier = r.quartier;
+    } else {
+      const parts = String(r.brigade || '').split(/\s[\u2013\u2014-]\s/);
+      province = parts[0]; ville = parts[1]; quartier = r.location;
+    }
+    const clean = (v) => { const t = String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); return t || 'Non renseign\u00e9'; };
+    return { province: clean(province), ville: clean(ville), quartier: clean(quartier) };
+  }
+
+  function synFiltered() {
+    const now = Date.now();
+    const days = SYN.period === '7' ? 7 : (SYN.period === '30' ? 30 : 0);
+    return SYN.data.filter(r => {
+      if (!r || typeof r !== 'object') return false;
+      if (SYN.type === 'sig' && synIsRetour(r)) return false;
+      if (SYN.type === 'ret' && !synIsRetour(r)) return false;
+      if (days && (now - new Date(r.timestamp).getTime()) > days * 86400000) return false;
+      if (SYN.province !== 'all' && synNorm(synGeo(r).province) !== SYN.province) return false;
+      return true;
+    });
+  }
+
+  function synNode(name) { return { name: name, total: 0, sig: 0, ret: 0, urgent: 0, vuln: 0, people: 0, kids: new Map(), cases: [] }; }
+  function synBump(n, r) {
+    n.total++;
+    if (synIsRetour(r)) n.ret++; else n.sig++;
+    if (synIsUrgent(r)) n.urgent++;
+    if (synIsVuln(r)) n.vuln++;
+    n.people += synPeople(r);
+  }
+  function synTree(rows) {
+    const root = new Map();
+    rows.forEach(r => {
+      const g = synGeo(r);
+      const kp = synNorm(g.province), kv = synNorm(g.ville), kq = synNorm(g.quartier);
+      if (!root.has(kp)) root.set(kp, synNode(g.province));
+      const p = root.get(kp); synBump(p, r);
+      if (!p.kids.has(kv)) p.kids.set(kv, synNode(g.ville));
+      const v = p.kids.get(kv); synBump(v, r);
+      if (!v.kids.has(kq)) v.kids.set(kq, synNode(g.quartier));
+      const q = v.kids.get(kq); synBump(q, r); q.cases.push(r);
+    });
+    return root;
+  }
+  function synSorted(map) { return Array.from(map.values()).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'fr')); }
+
+  function synCounts(n) {
+    return '<span class="syn-counts"><span class="syn-total">' + n.total + '</span>' +
+      '<span class="syn-pill sig">' + n.sig + ' signal.</span>' +
+      '<span class="syn-pill ret">' + n.ret + ' fiche' + (n.ret > 1 ? 's' : '') + '</span>' +
+      (n.urgent ? '<span class="syn-flag">' + n.urgent + ' urgent' + (n.urgent > 1 ? 's' : '') + '</span>' : '') + '</span>';
+  }
+
+  function synCaseRow(r, showPlace) {
+    const idx = SYN.cases.push(r) - 1;
+    const d = new Date(r.timestamp);
+    const ds = isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+    const ret = synIsRetour(r);
+    const g = synGeo(r);
+    const title = ret ? (r.chefFamille || 'Famille non nomm\u00e9e') : (r.eventType || '\u00c9v\u00e9nement');
+    const bits = ret
+      ? [r.sinistre, r.tailleMenage ? r.tailleMenage + ' pers.' : '']
+      : [r.level ? 'Urgence ' + r.level : '', r.status === 'traite' ? 'Trait\u00e9' : 'Nouveau'];
+    if (showPlace) bits.unshift(g.quartier + ', ' + g.ville);
+    const sub = bits.filter(Boolean).join(' \u00b7 ');
+    return '<div class="syn-case" data-i="' + idx + '"><span class="syn-tag ' + (ret ? 'ret' : 'sig') + '">' + (ret ? 'Fiche' : 'Signal.') + '</span>' +
+      '<div class="syn-case-main"><b>' + synEsc(title) + '</b><small>' + synEsc(sub) + '</small></div>' +
+      '<span class="syn-date">' + synEsc(ds) + '</span>' + (synIsUrgent(r) ? '<span class="syn-flag">Urgent</span>' : '') + '</div>';
+  }
+
+  function synKpi(label, value, tone) {
+    return '<div class="syn-kpi ' + (tone || '') + '"><b>' + Number(value).toLocaleString('fr-FR') + '</b><span>' + label + '</span></div>';
+  }
+
+  function synRender() {
+    const body = document.getElementById('synBody');
+    if (!body) return;
+    SYN.cases = [];
+
+    const provMap = new Map();
+    SYN.data.forEach(r => { if (r && typeof r === 'object') { const g = synGeo(r); provMap.set(synNorm(g.province), g.province); } });
+    if (SYN.province !== 'all' && !provMap.has(SYN.province)) SYN.province = 'all';
+    const sel = document.getElementById('synProvince');
+    sel.innerHTML = '<option value="all">Toutes les provinces</option>' +
+      Array.from(provMap.entries()).sort((a, b) => a[1].localeCompare(b[1], 'fr')).map(e => '<option value="' + synEsc(e[0]) + '">' + synEsc(e[1]) + '</option>').join('');
+    sel.value = SYN.province;
+    document.querySelectorAll('#synType button').forEach(b => b.classList.toggle('on', b.dataset.v === SYN.type));
+    document.querySelectorAll('#synPeriod button').forEach(b => b.classList.toggle('on', b.dataset.v === SYN.period));
+    const stamp = document.getElementById('synStamp');
+    if (stamp && SYN.loadedAt) stamp.textContent = 'Mis \u00e0 jour \u00e0 ' + SYN.loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' \u00b7 ' + SYN.data.length + ' enregistrement(s)';
+
+    const rows = synFiltered();
+    if (!rows.length) { body.innerHTML = '<div class="syn-empty">Aucun cas pour ces filtres.</div>'; return; }
+
+    const sig = rows.filter(r => !synIsRetour(r)).length;
+    const ret = rows.length - sig;
+    const urgList = rows.filter(synIsUrgent).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const vul = rows.filter(synIsVuln).length;
+    const ppl = rows.reduce((s, r) => s + synPeople(r), 0);
+
+    const kpis = '<div class="syn-kpis">' +
+      synKpi('Cas enregistr\u00e9s', rows.length, '') +
+      synKpi('Signalements', sig, 'red') +
+      synKpi('Fiches famille', ret, 'teal') +
+      synKpi('Urgences \u00e0 traiter', urgList.length, 'red') +
+      synKpi('Familles vuln\u00e9rables', vul, 'amber') +
+      synKpi('Personnes concern\u00e9es', ppl, '') + '</div>';
+
+    const priority = urgList.length
+      ? '<div class="syn-card"><h3>\u00c0 traiter en priorit\u00e9 (urgence \u00e9lev\u00e9e)</h3>' + urgList.slice(0, 8).map(r => synCaseRow(r, true)).join('') +
+        (urgList.length > 8 ? '<p class="syn-hint">+ ' + (urgList.length - 8) + ' autre(s) urgence(s) dans le d\u00e9tail ci-dessous</p>' : '') + '</div>'
+      : '';
+
+    const tree = synTree(rows);
+    const provs = synSorted(tree);
+    const maxP = Math.max(1, ...provs.map(p => p.total));
+    const legend = '<div class="syn-legend"><span><i style="background:#c8102e"></i>Signalements</span><span><i style="background:#1f6f68"></i>Fiches famille</span></div>';
+    const bars = provs.map(p => '<div class="syn-bar-row"><div class="syn-bar-label" title="' + synEsc(p.name) + '">' + synEsc(p.name) + '</div>' +
+      '<div class="syn-bar-track"><i class="s" style="width:' + (p.sig / maxP * 100) + '%"></i><i class="r" style="width:' + (p.ret / maxP * 100) + '%"></i></div>' +
+      '<div class="syn-bar-val">' + p.total + '</div></div>').join('');
+
+    const dayList = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+      dayList.push({ d: d, key: d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(), sig: 0, ret: 0 });
+    }
+    rows.forEach(r => {
+      const t = new Date(r.timestamp);
+      if (isNaN(t.getTime())) return;
+      const key = t.getFullYear() + '-' + t.getMonth() + '-' + t.getDate();
+      const slot = dayList.find(x => x.key === key);
+      if (slot) { if (synIsRetour(r)) slot.ret++; else slot.sig++; }
+    });
+    const maxD = Math.max(1, ...dayList.map(x => x.sig + x.ret));
+    const timeHtml = '<div class="syn-time">' + dayList.map(x => {
+      const tot = x.sig + x.ret;
+      return '<div class="syn-day" title="' + tot + ' cas"><div class="syn-col" style="height:' + (tot ? Math.max(6, tot / maxD * 80) : 0) + '%">' +
+        (x.ret ? '<i class="r" style="flex:' + x.ret + '"></i>' : '') + (x.sig ? '<i class="s" style="flex:' + x.sig + '"></i>' : '') +
+        '</div><span>' + x.d.getDate() + '</span></div>';
+    }).join('') + '</div>';
+
+    const treeHtml = provs.map((p, pi) =>
+      '<details class="syn-det d1"' + (pi === 0 ? ' open' : '') + '><summary><span class="syn-name">' + synEsc(p.name) + '</span>' + synCounts(p) + '</summary><div class="syn-det-body">' +
+      synSorted(p.kids).map(v =>
+        '<details class="syn-det d2"><summary><span class="syn-name">' + synEsc(v.name) + '</span>' + synCounts(v) + '</summary><div class="syn-det-body">' +
+        synSorted(v.kids).map(q =>
+          '<details class="syn-det d3"><summary><span class="syn-name">' + synEsc(q.name) + '</span>' + synCounts(q) + '</summary><div class="syn-det-body">' +
+          q.cases.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map(r => synCaseRow(r, false)).join('') +
+          '</div></details>').join('') +
+        '</div></details>').join('') +
+      '</div></details>').join('');
+
+    body.innerHTML = kpis + priority +
+      '<div class="syn-grid"><div class="syn-card"><h3>R\u00e9partition par province</h3>' + bars + legend + '</div>' +
+      '<div class="syn-card"><h3>\u00c9volution sur 14 jours</h3>' + timeHtml + legend + '</div></div>' +
+      '<div class="syn-card"><h3>D\u00e9tail par province, ville et quartier</h3><p class="syn-hint">Touchez une ligne pour la d\u00e9plier, puis un cas pour ouvrir sa fiche compl\u00e8te.</p>' + treeHtml + '</div>';
+  }
+
+  async function synLoad() {
+    const body = document.getElementById('synBody');
+    if (body) body.innerHTML = '<div class="syn-loading">Chargement des donn\u00e9es...</div>';
+    try {
+      SYN.data = await Store.list();
+      SYN.loadedAt = new Date();
+      synRender();
+    } catch (e) {
+      if (body) body.innerHTML = '<div class="syn-loading">Impossible de charger les donn\u00e9es. V\u00e9rifiez la connexion.</div>';
+    }
+  }
+
+  function synExportCsv() {
+    const tree = synTree(synFiltered());
+    const q = (s) => '"' + String(s).replace(/"/g, '""') + '"';
+    const out = [['Province', 'Ville', 'Quartier', 'Signalements', 'Fiches famille', 'Total', 'Urgences non trait\u00e9es', 'Familles vuln\u00e9rables', 'Personnes concern\u00e9es'].map(q).join(';')];
+    synSorted(tree).forEach(p => synSorted(p.kids).forEach(v => synSorted(v.kids).forEach(n => {
+      out.push([p.name, v.name, n.name, n.sig, n.ret, n.total, n.urgent, n.vuln, n.people].map(q).join(';'));
+    })));
+    const blob = new Blob(['\uFEFF' + out.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'carnet-terrain_tableau-de-bord_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function synPrint() {
+    document.querySelectorAll('#synOverlay details.d1, #synOverlay details.d2').forEach(d => { d.open = true; });
+    window.print();
+  }
+
+  function synOpen() {
+    synEnsure();
+    document.getElementById('synOverlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    synLoad();
+  }
+  function synClose() {
+    const ov = document.getElementById('synOverlay');
+    if (ov) ov.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function synEnsure() {
+    if (SYN.ready) return;
+    SYN.ready = true;
+    const st = document.createElement('style');
+    st.id = 'syn-style';
+    st.textContent = `
+#synOverlay{position:fixed;inset:0;z-index:9000;background:#f4f5f7;overflow:auto;color:#1c1f23}
+.syn-wrap{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+.syn-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.syn-head h2{margin:0;font-size:24px;font-weight:800}
+.syn-head p{margin:2px 0 0;font-size:13px;opacity:.6}
+.syn-actions{display:flex;flex-wrap:wrap;gap:8px}
+.syn-btn{border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#1c1f23}
+.syn-btn.primary{background:#c8102e;border-color:#c8102e;color:#fff}
+.syn-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.syn-seg{display:inline-flex;background:#e9ebef;border-radius:10px;padding:3px}
+.syn-seg button{border:0;background:transparent;padding:7px 13px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555}
+.syn-seg button.on{background:#fff;color:#c8102e;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.syn-filters select{border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:8px 12px;font-size:13px}
+.syn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.syn-kpi{background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.syn-kpi b{display:block;font-size:28px;line-height:1.1}
+.syn-kpi span{font-size:12px;opacity:.65}
+.syn-kpi.red b{color:#c8102e}.syn-kpi.teal b{color:#1f6f68}.syn-kpi.amber b{color:#b45309}
+.syn-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media (max-width:760px){.syn-grid{grid-template-columns:1fr}}
+.syn-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.syn-grid .syn-card{margin-bottom:0}
+.syn-card h3{margin:0 0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c8102e}
+.syn-hint{margin:0 0 8px;font-size:12px;opacity:.6}
+.syn-bar-row{display:grid;grid-template-columns:110px 1fr 34px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
+.syn-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.syn-bar-track{display:flex;background:#eef0f3;border-radius:6px;height:14px;overflow:hidden}
+.syn-bar-track i{display:block;height:100%}
+.syn-bar-track i.s{background:#c8102e}.syn-bar-track i.r{background:#1f6f68}
+.syn-bar-val{text-align:right;font-weight:700}
+.syn-legend{display:flex;gap:14px;font-size:12px;margin-top:10px;opacity:.8}
+.syn-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.syn-time{display:flex;align-items:flex-end;gap:4px;height:150px}
+.syn-day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:10px;color:#777}
+.syn-col{width:100%;display:flex;flex-direction:column;border-radius:4px;overflow:hidden}
+.syn-col i{display:block}.syn-col i.s{background:#c8102e}.syn-col i.r{background:#1f6f68}
+.syn-det{border:1px solid #e6e8ec;border-radius:12px;margin:8px 0;background:#fff}
+.syn-det>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 14px;font-weight:700}
+.syn-det>summary::-webkit-details-marker{display:none}
+.syn-det>summary::before{content:'\\25B8';font-size:12px;color:#c8102e;transition:transform .15s}
+.syn-det[open]>summary::before{transform:rotate(90deg)}
+.syn-det.d1{background:#fafbfc}
+.syn-det.d3>summary{font-weight:600;font-size:14px}
+.syn-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.syn-det-body{padding:0 12px 10px 20px}
+.syn-counts{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.syn-total{background:#1c1f23;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px}
+.syn-pill{border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700}
+.syn-pill.sig{background:#fdecee;color:#c8102e}.syn-pill.ret{background:#e3f1ef;color:#1f6f68}
+.syn-flag{background:#c8102e;color:#fff;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.syn-case{display:flex;align-items:center;gap:10px;padding:9px 10px;border-top:1px solid #eef0f3;cursor:pointer;font-size:13px}
+.syn-case:hover{background:#f6f7f9}
+.syn-tag{border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap}
+.syn-tag.sig{background:#fdecee;color:#c8102e}.syn-tag.ret{background:#e3f1ef;color:#1f6f68}
+.syn-case-main{flex:1;min-width:0}.syn-case-main b{display:block}.syn-case-main small{opacity:.65}
+.syn-date{font-size:12px;opacity:.6;white-space:nowrap}
+.syn-loading,.syn-empty{padding:40px 10px;text-align:center;opacity:.65}
+#synFab{position:fixed;right:16px;bottom:16px;z-index:900;border:0;background:#c8102e;color:#fff;border-radius:999px;padding:12px 18px;font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(200,16,46,.35);cursor:pointer}
+@media print{
+  body>*:not(#synOverlay){display:none !important}
+  #synOverlay{position:static !important;overflow:visible !important;background:#fff !important}
+  .syn-noprint{display:none !important}
+  .syn-card,.syn-kpi{box-shadow:none !important;border:1px solid #ddd}
+}`;
+    document.head.appendChild(st);
+
+    const ov = document.createElement('div');
+    ov.id = 'synOverlay';
+    ov.style.display = 'none';
+    ov.innerHTML =
+      '<div class="syn-wrap">' +
+        '<div class="syn-head"><div><h2>Tableau de bord \u2014 Carnet de terrain</h2><p id="synStamp"></p></div>' +
+          '<div class="syn-actions syn-noprint">' +
+            '<button type="button" class="syn-btn" id="synRefresh">Actualiser</button>' +
+            '<button type="button" class="syn-btn" id="synCsv">Exporter (CSV)</button>' +
+            '<button type="button" class="syn-btn" id="synPrint">Imprimer</button>' +
+            '<button type="button" class="syn-btn primary" id="synClose">Fermer</button>' +
+          '</div></div>' +
+        '<div class="syn-filters syn-noprint">' +
+          '<div class="syn-seg" id="synType"><button type="button" data-v="all">Tout</button><button type="button" data-v="sig">Signalements</button><button type="button" data-v="ret">Retours d\u2019info</button></div>' +
+          '<div class="syn-seg" id="synPeriod"><button type="button" data-v="all">Tout</button><button type="button" data-v="30">30 jours</button><button type="button" data-v="7">7 jours</button></div>' +
+          '<select id="synProvince"></select>' +
+        '</div>' +
+        '<div id="synBody"></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    const fab = document.createElement('button');
+    fab.id = 'synFab';
+    fab.type = 'button';
+    fab.className = 'syn-noprint';
+    fab.textContent = 'Tableau de bord';
+    fab.style.display = 'none';
+    fab.addEventListener('click', synOpen);
+    document.body.appendChild(fab);
+
+    ov.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t.closest('#synClose')) { synClose(); return; }
+      if (t.closest('#synRefresh')) { synLoad(); return; }
+      if (t.closest('#synCsv')) { synExportCsv(); return; }
+      if (t.closest('#synPrint')) { synPrint(); return; }
+      const seg = t.closest('.syn-seg button');
+      if (seg) {
+        if (seg.parentElement.id === 'synType') SYN.type = seg.dataset.v; else SYN.period = seg.dataset.v;
+        synRender();
+        return;
+      }
+      const row = t.closest('.syn-case');
+      if (row) {
+        const r = SYN.cases[Number(row.dataset.i)];
+        if (!r) return;
+        const modal = document.getElementById('detailModal');
+        if (modal) modal.style.zIndex = '10050';
+        window.__allReports = window.__allReports || SYN.data.filter(x => x && !synIsRetour(x));
+        if (synIsRetour(r)) openRetourDetail(r); else openDetailModal(r);
+      }
+    });
+    document.getElementById('synProvince').addEventListener('change', (e) => { SYN.province = e.target.value; synRender(); });
+
+    const dm = document.getElementById('detailModal');
+    if (dm && window.MutationObserver) {
+      new MutationObserver(() => {
+        if (!dm.classList.contains('show') && ov.style.display === 'block') synRender();
+      }).observe(dm, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  window.syntheseSync = function () {
+    synEnsure();
+    const fab = document.getElementById('synFab');
+    const show = typeof AdminAuth !== 'undefined' && AdminAuth.isAdmin;
+    if (fab) fab.style.display = show ? '' : 'none';
+    if (!show) synClose();
+  };
+
   async function loadRetourHistory() {
     const el = document.getElementById('retourHistory');
     if (!AdminAuth.isAdmin) { el.innerHTML = ''; return; }
