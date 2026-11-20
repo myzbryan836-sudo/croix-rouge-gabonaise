@@ -3390,8 +3390,10 @@ AdminAuth.init().then(updateAdminUI);
     const fab = document.getElementById('synFab');
     const show = typeof AdminAuth !== 'undefined' && AdminAuth.isAdmin;
     if (fab) fab.style.display = show ? '' : 'none';
-    if (!show) synClose();
+    if (!show) { const o = document.getElementById('synOverlay'); if (o && o.style.display === 'block') synClose(); }
   };
+
+  setInterval(() => { try { window.syntheseSync(); } catch (e) { } }, 1500);
 
   async function loadRetourHistory() {
     const el = document.getElementById('retourHistory');
