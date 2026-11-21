@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cr-terrain-v13';
+const CACHE_NAME = 'cr-terrain-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,9 @@ const ASSETS = [
   './icon-512.png',
   './favicon-64.png',
   './apple-touch-icon.png',
-  './logo-header.png'
+  './logo-header.png',
+  './alert-center.css',
+  './alert-center.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -40,6 +42,44 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => cached);
       return cached || fetchPromise;
+    })
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try { payload = event.data ? event.data.json() : {}; } catch (_) {}
+  const title = payload.title || 'Nouvelle alerte urgence';
+  const options = {
+    body: payload.body || 'Un nouveau signalement est disponible.',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: payload.data || {},
+    tag: payload.tag || 'carnet-terrain-alert',
+    requireInteraction: true,
+    actions: [
+      { action: 'open', title: 'Ouvrir' },
+      { action: 'ack', title: 'Accuser reception' }
+    ],
+    vibrate: [300, 150, 300, 150, 800]
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((items) => {
+      const reportId = event.notification.data && event.notification.data.id;
+      if (event.action === 'ack' && items.length) {
+        return items[0].focus().then(() => {
+          items[0].postMessage({ type: 'ACK_ALERT', id: reportId });
+        });
+      }
+      const target = event.action === 'ack' && reportId
+        ? './index.html?ack=' + encodeURIComponent(reportId)
+        : './index.html';
+      return clients.openWindow(target);
     })
   );
 });

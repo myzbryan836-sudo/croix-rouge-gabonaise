@@ -12,6 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon-64.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="alert-center.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -1182,12 +1183,7 @@ input:focus, select:focus, textarea:focus {
       <p class="modal-text">Par défaut, l'application fonctionne <strong>hors ligne</strong> et enregistre les signalements uniquement sur cet appareil. Pour que toutes les brigades partagent le même tableau de suivi, activez une base de données <strong>Supabase</strong> — service entièrement gratuit (offre Free, sans carte bancaire) pour ce volume d'utilisation.</p>
       <ol class="modal-steps">
         <li>Aller sur <span class="code">supabase.com</span> → créer un compte gratuit → <strong>New project</strong>.</li>
-        <li>Une fois le projet créé, ouvrir l'onglet <strong>SQL Editor</strong> et exécuter :<br>
-          <span class="code">create table signalements (id text primary key, data jsonb, created_at timestamptz default now());</span><br>
-          puis :<br>
-          <span class="code">alter table signalements enable row level security;</span><br>
-          <span class="code">create policy "public rw" on signalements for all using (true) with check (true);</span>
-        </li>
+        <li>Créer la table existante <span class="code">signalements (id text primary key, data jsonb, created_at timestamptz)</span>, puis ouvrir le <strong>SQL Editor</strong> et exécuter le fichier <span class="code">supabase_alerts_migration.sql</span> fourni dans ce dossier.</li>
         <li>Aller dans <strong>Project Settings</strong> → <strong>API</strong>. Copier l'<strong>URL du projet</strong> et la clé <strong>anon public</strong>.</li>
         <li>Coller les deux valeurs ci-dessous, au format indiqué.</li>
       </ol>
@@ -1227,7 +1223,7 @@ input:focus, select:focus, textarea:focus {
       </div>
 
       <div id="adminManageFields" style="display:none;">
-        <p class="modal-text">Connecté en tant qu'administrateur.</p>
+        <p class="modal-text">Connecté en tant que responsable autorisé. Un code d'invitation ne donne pas à lui seul les droits administrateur: un responsable doit attribuer le rôle sécurisé au compte.</p>
         <div class="field">
           <button type="button" class="modal-btn primary" id="genInviteBtn" style="width:100%;">Générer un code d'invitation admin</button>
         </div>
@@ -1623,6 +1619,7 @@ input:focus, select:focus, textarea:focus {
   </div>
 
   <div class="panel" id="dashboardPanel" style="display:none;">
+    <div id="alertCenter"></div>
     <div class="stats" id="statsRow"></div>
     <div class="filter-row" id="filterRow">
       <div class="filter-chip active" data-filter="tous">Tous</div>
@@ -1819,7 +1816,7 @@ const Store = {
   },
   async add(report) {
     if (this.mode === 'supabase') {
-      const { error } = await this.client.from('signalements').upsert({
+      const { error } = await this.client.from('signalements').insert({
         id: report.id,
         data: report,
         created_at: report.timestamp
@@ -1833,6 +1830,9 @@ const Store = {
   },
   async list() {
     if (this.mode === 'supabase') {
+      if (!AdminAuth.isAdmin) {
+        throw new Error('La consultation des signalements est réservée aux responsables autorisés.');
+      }
       const { data, error } = await this.client
         .from('signalements')
         .select('data')
@@ -1845,6 +1845,9 @@ const Store = {
   },
   async remove(id) {
     if (this.mode === 'supabase') {
+      if (!AdminAuth.isAdmin) {
+        throw new Error('La suppression est réservée aux responsables autorisés.');
+      }
       const { error } = await this.client.from('signalements').delete().eq('id', id);
       if (error) throw error;
     } else {
@@ -1852,6 +1855,35 @@ const Store = {
       delete all[id];
       localStorage.setItem('rc_signalements', JSON.stringify(all));
     }
+  },
+  async transition(id, expectedStatuses, nextStatus, team) {
+    if (this.mode === 'local') {
+      const all = JSON.parse(localStorage.getItem('rc_signalements') || '{}');
+      const report = all[id];
+      if (!report) throw new Error('Signalement introuvable.');
+      const currentStatus = report.status || 'nouveau';
+      if (!expectedStatuses.includes(currentStatus)) {
+        throw new Error('Le signalement a déjà été modifié. Actualisez le tableau de bord.');
+      }
+      report.status = nextStatus;
+      if (team) report.assigned_team = team;
+      report.status_history = Array.isArray(report.status_history) ? report.status_history : [];
+      report.status_history.push({ status: nextStatus, at: new Date().toISOString(), team: team || '' });
+      all[id] = report;
+      localStorage.setItem('rc_signalements', JSON.stringify(all));
+      return report;
+    }
+    if (!this.client || !AdminAuth.isAdmin) {
+      throw new Error('La prise en charge est réservée aux responsables autorisés.');
+    }
+    const { data, error } = await this.client.rpc('transition_signalement_status', {
+      p_report_id: id,
+      p_expected_statuses: expectedStatuses,
+      p_next_status: nextStatus,
+      p_team: team || null
+    });
+    if (error) throw error;
+    return data;
   }
 };
 Store.init();
@@ -1861,17 +1893,34 @@ Store.init();
 // utilisent le formulaire sans jamais se connecter. ---
 const AdminAuth = {
   isAdmin: false,
+  authListener: null,
+  hasAdminRole(user) {
+    return !!(user && user.app_metadata && user.app_metadata.carnet_role === 'admin');
+  },
   async init() {
     if (Store.mode !== 'supabase' || !Store.client) return;
-    const { data } = await Store.client.auth.getSession();
-    this.isAdmin = !!data.session;
+    const { data, error } = await Store.client.auth.getSession();
+    if (error) throw error;
+    this.isAdmin = !!(data.session && this.hasAdminRole(data.session.user));
+    if (!this.authListener) {
+      const { data: listener } = Store.client.auth.onAuthStateChange((_event, session) => {
+        const wasAdmin = this.isAdmin;
+        this.isAdmin = !!(session && this.hasAdminRole(session.user));
+        if (wasAdmin !== this.isAdmin && typeof updateAdminUI === 'function') updateAdminUI();
+      });
+      this.authListener = listener.subscription;
+    }
   },
   async login(email, password) {
     if (Store.mode !== 'supabase' || !Store.client) {
       throw new Error('La synchronisation n\'est pas configurée sur cet appareil.');
     }
-    const { error } = await Store.client.auth.signInWithPassword({ email, password });
+    const { data, error } = await Store.client.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    if (!this.hasAdminRole(data.user)) {
+      await Store.client.auth.signOut();
+      throw new Error('Ce compte est authentifié mais ne possède pas le rôle de responsable Carnet Terrain.');
+    }
     this.isAdmin = true;
   },
   async signupWithInvite(email, password, code) {
@@ -1884,12 +1933,22 @@ const AdminAuth = {
     if (!invite || invite.used) throw new Error('Code d\'invitation invalide ou déjà utilisé.');
     const { error: signErr } = await Store.client.auth.signUp({ email, password });
     if (signErr) throw signErr;
-    await Store.client.auth.signInWithPassword({ email, password });
-    await Store.client.from('admin_invites').update({ used: true }).eq('code', code.trim().toUpperCase());
+    const { data: session, error: loginErr } = await Store.client.auth.signInWithPassword({ email, password });
+    if (loginErr) throw loginErr;
+    const { error: inviteErr } = await Store.client.from('admin_invites')
+      .update({ used: true }).eq('code', code.trim().toUpperCase());
+    if (inviteErr) throw inviteErr;
+    if (!this.hasAdminRole(session.user)) {
+      await Store.client.auth.signOut();
+      throw new Error('Compte créé, mais un administrateur doit lui attribuer le rôle carnet_role=admin dans les métadonnées serveur avant toute connexion.');
+    }
     this.isAdmin = true;
   },
   async generateInvite() {
-    const code = 'RC-' + Math.floor(1000 + Math.random() * 9000);
+    if (!this.isAdmin) throw new Error('Action réservée aux responsables autorisés.');
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const code = 'RC-' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
     const { error } = await Store.client.from('admin_invites').insert({ code });
     if (error) throw error;
     return code;
@@ -1912,7 +1971,7 @@ function updateAdminUI() {
   document.getElementById('adminLoginBtn').style.display = isAdmin ? 'none' : '';
   document.getElementById('adminLogoutBtn').style.display = isAdmin ? '' : 'none';
   document.getElementById('adminModalText').textContent = isAdmin
-    ? 'Vous gérez les signalements et pouvez inviter d\'autres administrateurs.'
+    ? 'Session responsable autorisée. Les droits sont contrôlés par le rôle serveur carnet_role=admin.'
     : 'Réservé aux responsables. Les agents de terrain n\'ont pas besoin de se connecter — ils remplissent simplement le formulaire.';
   if (!isAdmin) {
     const dashTab = document.querySelector('.tab[data-tab="dashboard"]');
@@ -1921,6 +1980,7 @@ function updateAdminUI() {
     }
   }
   loadMyReports();
+  window.dispatchEvent(new CustomEvent('carnet-admin-state', { detail: { isAdmin } }));
 }
 
 document.getElementById('adminBtn').addEventListener('click', () => {
@@ -1936,8 +1996,8 @@ document.getElementById('toggleSignupMode').addEventListener('click', (e) => {
   e.preventDefault();
   signupMode = !signupMode;
   document.getElementById('inviteCodeField').style.display = signupMode ? '' : 'none';
-  document.getElementById('adminLoginBtn').textContent = signupMode ? 'Créer mon compte admin' : 'Se connecter';
-  e.target.textContent = signupMode ? 'J\'ai déjà un compte admin' : 'J\'ai un code d\'invitation et je n\'ai pas encore de compte';
+  document.getElementById('adminLoginBtn').textContent = signupMode ? 'Créer mon compte' : 'Se connecter';
+  e.target.textContent = signupMode ? 'J\'ai déjà un compte' : 'J\'ai un code d\'invitation et je n\'ai pas encore de compte';
 });
 
 document.getElementById('adminLoginBtn').addEventListener('click', async () => {
@@ -1985,7 +2045,15 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-AdminAuth.init().then(updateAdminUI);
+window.adminAuthReady = AdminAuth.init().then(() => {
+  updateAdminUI();
+  return AdminAuth.isAdmin;
+}).catch(err => {
+  console.error('Impossible de vérifier le rôle du compte', err);
+  updateAdminUI();
+  document.getElementById('adminStatus').textContent = 'Impossible de vérifier les autorisations. Réessayez.';
+  return false;
+});
 
 (function(){
   let selectedNeeds = new Set();
@@ -2126,6 +2194,7 @@ AdminAuth.init().then(updateAdminUI);
 
     const id = 'evt_' + Date.now() + '_' + Math.floor(Math.random()*1000);
     const refShort = '#' + Date.now().toString().slice(-6);
+    let trackingToken;
 
     const report = {
       id,
@@ -2145,8 +2214,10 @@ AdminAuth.init().then(updateAdminUI);
     };
 
     try {
+      trackingToken = createTrackingToken();
+      report.tracking_token_hash = await hashTrackingToken(trackingToken);
       await Store.add(report);
-      saveMyReportRef(report);
+      saveMyReportRef(report, trackingToken);
       exportRecordFile(report);
       stampRef.textContent = refShort;
       form.style.display = 'none';
@@ -2209,7 +2280,7 @@ AdminAuth.init().then(updateAdminUI);
       const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' à ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       const geoStr = r.geo ? `${r.geo.lat}, ${r.geo.lng}` : 'non capturée';
       const needsHtml = (r.needs || []).map(n => `<span class="need-tag">${escapeHtml(n)}</span>`).join('');
-      const isTraite = r.status === 'traite';
+      const isTraite = r.status === 'traite' || r.status === 'resolu';
       return `
         <div class="ticket ${r.level} ${isTraite ? 'traite' : ''}">
           <div class="ticket-top">
@@ -2225,7 +2296,7 @@ AdminAuth.init().then(updateAdminUI);
             ${AdminAuth.isAdmin ? `<button type="button" class="delete-report-btn" data-id="${escapeHtml(r.id)}" style="color:#c0392b;border-color:#c0392b;">Supprimer</button>` : ""}
             ${isTraite
               ? `<span class="status-badge traite">✓ Traité</span>`
-              : `<span class="status-badge nouveau">Nouveau</span><button type="button" class="mark-treated-btn" data-id="${escapeHtml(r.id)}">Marquer comme traité</button>`}
+              : `<span class="status-badge nouveau">${escapeHtml(r.status || 'Nouveau')}</span>${AdminAuth.isAdmin ? `<button type="button" class="mark-treated-btn" data-id="${escapeHtml(r.id)}">Marquer comme traité</button>` : ''}`}
           </div>
         </div>
       `;
@@ -2234,16 +2305,15 @@ AdminAuth.init().then(updateAdminUI);
 
   document.getElementById('ticketsList').addEventListener('click', async (e) => {
     const btn = e.target.closest('.mark-treated-btn');
-    if (!btn) return;
+    if (!btn || !AdminAuth.isAdmin) return;
     const id = btn.dataset.id;
     const report = (window.__allReports || []).find(r => r.id === id);
     if (!report) return;
     btn.disabled = true;
     btn.textContent = 'Mise à jour...';
     try {
-      report.status = 'traite';
-      await Store.add(report);
-      renderTickets(window.__allReports);
+      await Store.transition(report.id, [report.status || 'nouveau'], 'resolu', '');
+      await loadDashboard();
     } catch (err) {
       alert("Impossible de mettre à jour ce signalement. Vérifiez votre connexion.");
       btn.disabled = false;
@@ -2325,7 +2395,7 @@ AdminAuth.init().then(updateAdminUI);
     const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' a ' + date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const geoStr = report.geo ? `${report.geo.lat}, ${report.geo.lng}` : 'non capturee';
     const needsStr = (report.needs || []).join(', ') || 'Aucun';
-    const isTraite = report.status === 'traite';
+    const isTraite = report.status === 'traite' || report.status === 'resolu';
 
     {
       ensureRdStyle();
@@ -2375,7 +2445,8 @@ AdminAuth.init().then(updateAdminUI);
 
     const delBtn = document.getElementById('detailDeleteBtn');
     if (delBtn) {
-      delBtn.style.display = AdminAuth.isAdmin ? '' : 'none';
+      delBtn.style.display = 'none';
+      injectRecordToolbar(report);
       delBtn.disabled = false;
       delBtn.textContent = 'Supprimer';
       delBtn.onclick = async () => {
@@ -2397,16 +2468,16 @@ AdminAuth.init().then(updateAdminUI);
     if (isTraite) {
       markBtn.style.display = 'none';
     } else {
-      markBtn.style.display = '';
+      markBtn.style.display = AdminAuth.isAdmin ? '' : 'none';
       markBtn.disabled = false;
       markBtn.textContent = 'Marquer comme traite';
       markBtn.onclick = async () => {
         markBtn.disabled = true;
         markBtn.textContent = 'Mise a jour...';
         try {
-          report.status = 'traite';
-          await Store.add(report);
-          renderTickets(window.__allReports);
+          if (!AdminAuth.isAdmin) throw new Error('Action réservée aux responsables autorisés.');
+          await Store.transition(report.id, [report.status || 'nouveau'], 'resolu', '');
+          await loadDashboard();
           document.getElementById('detailModal').classList.remove('show');
         } catch (err) {
           alert("Impossible de mettre a jour ce signalement. Verifiez votre connexion.");
@@ -2651,7 +2722,7 @@ AdminAuth.init().then(updateAdminUI);
         femmesEnAgeProcreer: 'Femmes en \u00e2ge de procr\u00e9er', typeMaison: 'Type de maison',
         statutOccupant: 'Statut d\u2019occupation', feedback: 'Retour sur la situation', suggestions: 'Suggestions'
       };
-      const skip = ['id', 'formType', 'photo', 'audio', 'media'];
+      const skip = ['id', 'formType', 'photo', 'audio', 'media', 'tracking_token_hash'];
       const val = (k, v) => {
         if (v === null || v === undefined) return '';
         if (k === 'timestamp') { const d = new Date(v); return isNaN(d.getTime()) ? String(v) : d.toLocaleString('fr-FR'); }
@@ -2687,9 +2758,27 @@ AdminAuth.init().then(updateAdminUI);
     } catch (e) { /* l'export ne doit jamais bloquer l'enregistrement */ }
   }
 
-  function saveMyReportRef(report) {
+  function createTrackingToken() {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function hashTrackingToken(token) {
+    const bytes = new TextEncoder().encode(token);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  function saveMyReportRef(report, trackingToken) {
     const mine = JSON.parse(localStorage.getItem('rc_mes_signalements') || '[]');
-    mine.unshift({ id: report.id, ref: report.ref, eventType: report.eventType, timestamp: report.timestamp });
+    mine.unshift({
+      id: report.id,
+      ref: report.ref,
+      eventType: report.eventType,
+      timestamp: report.timestamp,
+      trackingToken: trackingToken
+    });
     localStorage.setItem('rc_mes_signalements', JSON.stringify(mine.slice(0, 20)));
   }
 
@@ -2701,19 +2790,37 @@ AdminAuth.init().then(updateAdminUI);
     section.style.display = '';
     listEl.innerHTML = '<div class="loading">Chargement du statut...</div>';
     try {
-      const all = await Store.list();
-      const byId = {};
-      all.forEach(r => { byId[r.id] = r; });
-      listEl.innerHTML = mine.map(m => {
-        const current = byId[m.id];
-        const isTraite = current && current.status === 'traite';
-        return `<div class="my-report-item">
-          <span>${escapeHtml(m.ref)} · ${escapeHtml(m.eventType || 'Événement')}</span>
-          <span class="status-badge ${isTraite ? 'traite' : 'nouveau'}">${isTraite ? '✓ Traité' : 'En attente'}</span>
-        </div>`;
-      }).join('');
+      if (Store.mode === 'supabase') {
+        const statuses = await Promise.all(mine.map(async m => {
+          if (!m.trackingToken) return { report: m, status: null };
+          const tokenHash = await hashTrackingToken(m.trackingToken);
+          const { data, error } = await Store.client.rpc('get_signalement_status', {
+            p_report_id: m.id,
+            p_tracking_token_hash: tokenHash
+          });
+          if (error) throw error;
+          return { report: m, status: Array.isArray(data) && data.length ? data[0].status : null };
+        }));
+        listEl.innerHTML = statuses.map(item => renderMyReportStatus(item.report, item.status)).join('');
+      } else {
+        const all = await Store.list();
+        const byId = {};
+        all.forEach(r => { byId[r.id] = r; });
+        listEl.innerHTML = mine.map(m => renderMyReportStatus(m, byId[m.id] && byId[m.id].status)).join('');
+      }
     } catch (err) {
       listEl.innerHTML = '<div class="empty-state">Impossible de vérifier le statut pour le moment.</div>';
+    }
+
+    function renderMyReportStatus(report, status) {
+      const isTraite = status === 'traite' || status === 'resolu';
+      const label = status
+        ? (isTraite ? '✓ Traité' : String(status).replace(/_/g, ' '))
+        : 'Statut indisponible';
+      return `<div class="my-report-item">
+        <span>${escapeHtml(report.ref)} · ${escapeHtml(report.eventType || 'Événement')}</span>
+        <span class="status-badge ${isTraite ? 'traite' : 'nouveau'}">${escapeHtml(label)}</span>
+      </div>`;
     }
   }
   window.loadMyReports = loadMyReports;
@@ -3020,6 +3127,7 @@ AdminAuth.init().then(updateAdminUI);
     if (bZip) bZip.onclick = () => downloadFullPackage(r);
 
     const markBtn = document.getElementById('detailMarkTreatedBtn');
+    injectRecordToolbar(r);
     if (markBtn) markBtn.style.display = 'none';
     const delBtn = document.getElementById('detailDeleteBtn');
     if (delBtn) delBtn.style.display = 'none';
@@ -3041,7 +3149,7 @@ AdminAuth.init().then(updateAdminUI);
   function synNorm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function synEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
   function synIsRetour(r) { return r.formType === 'retour'; }
-  function synIsUrgent(r) { return !synIsRetour(r) && synNorm(r.level).indexOf('elev') === 0 && r.status !== 'traite'; }
+  function synIsUrgent(r) { return !synIsRetour(r) && synNorm(r.level).indexOf('elev') === 0 && r.status !== 'traite' && r.status !== 'resolu' && r.status !== 'annule'; }
   function synIsVuln(r) { return synIsRetour(r) && synNorm(r.vulnerable) === 'oui'; }
   function synPeople(r) { return Number(synIsRetour(r) ? r.tailleMenage : r.affected) || 0; }
 
@@ -3121,7 +3229,9 @@ AdminAuth.init().then(updateAdminUI);
   }
   function synStatusInfo(r) {
     if (synIsRetour(r)) return { text: 'Enregistr\u00e9e', cls: '' };
-    return r.status === 'traite' ? { text: 'Trait\u00e9', cls: 'green' } : { text: 'Nouveau', cls: 'amber' };
+    return r.status === 'traite' || r.status === 'resolu'
+      ? { text: 'Trait\u00e9', cls: 'green' }
+      : { text: String(r.status || 'Nouveau').replace(/_/g, ' '), cls: 'amber' };
   }
   function synTitle(r) { return synIsRetour(r) ? (r.chefFamille || 'Famille non nomm\u00e9e') : (r.eventType || '\u00c9v\u00e9nement'); }
 
@@ -3440,6 +3550,261 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
 
   setInterval(() => { try { window.syntheseSync(); } catch (e) { } }, 1500);
 
+  const EDIT_LABELS = {
+    eventType: 'Type d\u2019\u00e9v\u00e9nement', brigade: 'Brigade / Zone', location: 'Localisation', volunteer: 'Volontaire',
+    affected: 'Personnes affect\u00e9es', level: 'Niveau d\u2019urgence', status: 'Statut', needs: 'Besoins (s\u00e9par\u00e9s par des virgules)', description: 'Description',
+    chefFamille: 'Chef de famille', age: '\u00c2ge', telephone: 'T\u00e9l\u00e9phone', nationalite: 'Nationalit\u00e9', profession: 'Profession',
+    matrimonial: 'Situation matrimoniale', handicap: 'Handicap', province: 'Province', ville: 'Ville', arrondissement: 'Arrondissement', quartier: 'Quartier',
+    sinistre: 'Sinistre', vulnerable: 'Famille vuln\u00e9rable', typeMaison: 'Type de maison', statutOccupant: 'Statut d\u2019occupation',
+    tailleMenage: 'Taille du m\u00e9nage', repasParJour: 'Repas par jour', prePrimaire: 'Pr\u00e9-primaire', primaire: 'Primaire', secondaire: 'Secondaire',
+    superieur: 'Sup\u00e9rieur', enfantsSansActe: 'Enfants sans acte de naissance', femmesEnAgeProcreer: 'Femmes en \u00e2ge de procr\u00e9er',
+    personnesVulnerables: 'Personnes vuln\u00e9rables (s\u00e9par\u00e9es par des virgules)', feedback: 'Retour sur la situation', suggestions: 'Suggestions'
+  };
+  const EDIT_NUM = ['affected', 'age', 'tailleMenage', 'repasParJour', 'prePrimaire', 'primaire', 'secondaire', 'superieur', 'enfantsSansActe', 'femmesEnAgeProcreer'];
+  const EDIT_TEXTAREA = ['description', 'feedback', 'suggestions'];
+  const EDIT_LIST = ['needs', 'personnesVulnerables'];
+  const EDIT_FIELDS_SIG = ['eventType', 'brigade', 'location', 'volunteer', 'affected', 'level', 'status', 'needs', 'description'];
+  const EDIT_FIELDS_RET = ['chefFamille', 'age', 'telephone', 'nationalite', 'profession', 'matrimonial', 'handicap', 'province', 'ville', 'arrondissement', 'quartier', 'sinistre', 'vulnerable', 'typeMaison', 'statutOccupant', 'tailleMenage', 'repasParJour', 'prePrimaire', 'primaire', 'secondaire', 'superieur', 'enfantsSansActe', 'femmesEnAgeProcreer', 'personnesVulnerables', 'feedback', 'suggestions'];
+
+  function recEnsureStyle() {
+    if (document.getElementById('rec-style')) return;
+    const st = document.createElement('style');
+    st.id = 'rec-style';
+    st.textContent = `
+.rd-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.rd-act{border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#1c1f23}
+.rd-act:hover{background:#f6f7f9}
+.rd-act.danger{color:#c8102e;border-color:#f0b6bf}.rd-act.danger:hover{background:#fdecee}
+.rd-act.primary{background:#c8102e;border-color:#c8102e;color:#fff}.rd-act.primary:hover{background:#b00e29}
+.rd-act:disabled{opacity:.6;cursor:default}
+#editOverlay{position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.ed-panel{background:#fff;border-radius:16px;width:100%;max-width:680px;max-height:92vh;overflow:auto;padding:18px 20px;color:#1c1f23}
+.ed-head h3{margin:0 0 12px;font-size:18px}
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+@media (max-width:560px){.ed-grid{grid-template-columns:1fr}}
+.ed-f{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.ed-f.wide{grid-column:1/-1}
+.ed-f span{font-weight:700;color:#555}
+.ed-f input,.ed-f select,.ed-f textarea{width:100%;box-sizing:border-box;border:1px solid #d9dce1;border-radius:10px;padding:9px 11px;font-size:14px;font-family:inherit;background:#fff;color:#1c1f23}
+.ed-note{font-size:12px;opacity:.6;margin:12px 0 0}
+.ed-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}`;
+    document.head.appendChild(st);
+  }
+
+  function recDistinct(key) {
+    const src = (SYN.data && SYN.data.length) ? SYN.data : (window.__allReports || []).concat(window.__retours || []);
+    const set = new Set();
+    src.forEach(x => { if (x && typeof x === 'object' && typeof x[key] === 'string' && x[key].trim()) set.add(x[key].trim()); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+  }
+
+  function syncLocalCopies(rec) {
+    [SYN.data, window.__allReports, window.__retours].forEach(arr => {
+      if (!Array.isArray(arr)) return;
+      const o = arr.find(x => x && x.id === rec.id);
+      if (o && o !== rec) Object.assign(o, rec);
+    });
+  }
+
+  function recRefreshViews(rec) {
+    try {
+      if (synIsRetour(rec)) { openRetourDetail(rec); loadRetourHistory(); }
+      else {
+        openDetailModal(rec);
+        if (typeof renderTickets === 'function' && window.__allReports) renderTickets(window.__allReports);
+      }
+      const o = document.getElementById('synOverlay');
+      if (o && o.style.display === 'block') synRender();
+    } catch (e) { /* l'affichage se rafraichira a la prochaine ouverture */ }
+  }
+
+  async function recStillExists(id) {
+    if (Store.mode === 'supabase' && Store.client) {
+      const res = await Store.client.from('signalements').select('id').eq('id', id);
+      if (res.error) throw res.error;
+      return !!(res.data && res.data.length);
+    }
+    return false;
+  }
+
+  async function deleteRecordFlow(rec, btn) {
+    const what = synIsRetour(rec) ? 'cette fiche' : 'ce signalement';
+    if (!confirm('Supprimer d\u00e9finitivement ' + what + ' ? Cette action est irr\u00e9versible.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Suppression...';
+    let refused = false;
+    try {
+      await Store.remove(rec.id);
+      if (await recStillExists(rec.id)) { refused = true; throw new Error('refused'); }
+    } catch (err) {
+      alert(refused ? 'La suppression a \u00e9t\u00e9 refus\u00e9e par le serveur : droits administrateur insuffisants.' : 'Impossible de supprimer. V\u00e9rifiez votre connexion.');
+      btn.disabled = false;
+      btn.textContent = 'Supprimer';
+      return;
+    }
+    try {
+      window.__allReports = (window.__allReports || []).filter(x => x.id !== rec.id);
+      window.__retours = (window.__retours || []).filter(x => x.id !== rec.id);
+      SYN.data = SYN.data.filter(x => !x || x.id !== rec.id);
+      document.getElementById('detailModal').classList.remove('show');
+      if (typeof renderTickets === 'function') renderTickets(window.__allReports);
+      loadRetourHistory();
+      const o = document.getElementById('synOverlay');
+      if (o && o.style.display === 'block') synRender();
+    } catch (e) { /* suppression faite, affichage rafraichi plus tard */ }
+  }
+
+  function openEditRecord(rec) {
+    recEnsureStyle();
+    const old = document.getElementById('editOverlay');
+    if (old) old.remove();
+    const ret = synIsRetour(rec);
+    const fields = ret ? EDIT_FIELDS_RET : EDIT_FIELDS_SIG;
+
+    const fieldHtml = fields.map(k => {
+      const cur = rec[k];
+      const id = 'ed_' + k;
+      const label = synEsc(EDIT_LABELS[k] || k);
+      let input = '';
+      if (k === 'level' || k === 'status' || k === 'vulnerable') {
+        const defs = k === 'level' ? [['faible', 'Faible'], ['moyen', 'Moyen'], ['eleve', '\u00c9lev\u00e9']]
+          : (k === 'status' ? [['nouveau', 'Nouveau'], ['traite', 'Trait\u00e9']] : [['Oui', 'Oui'], ['Non', 'Non']]);
+        const curN = synNorm(cur);
+        let found = false;
+        let opts = defs.map(d => {
+          const sel = synNorm(d[0]) === curN;
+          if (sel) found = true;
+          const val = (sel && cur != null) ? String(cur) : d[0];
+          return '<option value="' + synEsc(val) + '"' + (sel ? ' selected' : '') + '>' + d[1] + '</option>';
+        }).join('');
+        if (!found) opts = '<option value="' + synEsc(cur == null ? '' : cur) + '" selected>' + synEsc(cur == null || cur === '' ? '\u2014' : cur) + '</option>' + opts;
+        input = '<select id="' + id + '">' + opts + '</select>';
+      } else if (EDIT_TEXTAREA.indexOf(k) !== -1) {
+        input = '<textarea id="' + id + '" rows="4">' + synEsc(cur == null ? '' : cur) + '</textarea>';
+      } else if (EDIT_LIST.indexOf(k) !== -1) {
+        input = '<input type="text" id="' + id + '" value="' + synEsc(Array.isArray(cur) ? cur.join(', ') : '') + '">';
+      } else if (EDIT_NUM.indexOf(k) !== -1) {
+        input = '<input type="number" min="0" step="1" id="' + id + '" value="' + synEsc(cur == null ? '' : cur) + '">';
+      } else {
+        const dl = recDistinct(k);
+        input = '<input type="text" id="' + id + '" value="' + synEsc(cur == null ? '' : cur) + '"' + (dl.length ? ' list="dl_' + k + '"' : '') + ' autocomplete="off">' +
+          (dl.length ? '<datalist id="dl_' + k + '">' + dl.map(v => '<option value="' + synEsc(v) + '"></option>').join('') + '</datalist>' : '');
+      }
+      return '<label class="ed-f' + (EDIT_TEXTAREA.indexOf(k) !== -1 ? ' wide' : '') + '"><span>' + label + '</span>' + input + '</label>';
+    }).join('');
+
+    const ov = document.createElement('div');
+    ov.id = 'editOverlay';
+    ov.innerHTML = '<div class="ed-panel"><div class="ed-head"><h3>Modifier ' + (ret ? 'la fiche famille' : 'le signalement') + ' ' + synEsc(rec.ref || '') + '</h3></div>' +
+      '<div class="ed-grid">' + fieldHtml + '</div>' +
+      '<p class="ed-note">Les photos, vid\u00e9os, enregistrements vocaux et r\u00e9partitions par \u00e2ge ne sont pas modifiables ici.</p>' +
+      '<div class="ed-actions"><button type="button" class="rd-act" id="edCancel">Annuler</button><button type="button" class="rd-act primary" id="edSave">Enregistrer</button></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    document.getElementById('edCancel').addEventListener('click', () => ov.remove());
+
+    document.getElementById('edSave').addEventListener('click', async () => {
+      const btn = document.getElementById('edSave');
+      const next = {};
+      let bad = '';
+      fields.forEach(k => {
+        const el = document.getElementById('ed_' + k);
+        if (!el) return;
+        const raw = el.value;
+        if (EDIT_LIST.indexOf(k) !== -1) { next[k] = raw.split(',').map(s => s.trim()).filter(Boolean); return; }
+        const v = raw.trim();
+        if (EDIT_NUM.indexOf(k) !== -1) {
+          if (v !== '' && (isNaN(Number(v)) || Number(v) < 0)) bad = EDIT_LABELS[k] || k;
+          next[k] = v === '' ? null : v;
+          return;
+        }
+        next[k] = v;
+      });
+      if (bad) { alert('Valeur invalide : ' + bad); return; }
+      btn.disabled = true;
+      btn.textContent = 'Enregistrement...';
+      const backup = Object.assign({}, rec);
+      Object.assign(rec, next);
+      try {
+        await Store.add(rec);
+        syncLocalCopies(rec);
+        ov.remove();
+        recRefreshViews(rec);
+      } catch (err) {
+        Object.keys(rec).forEach(k => { if (!(k in backup)) delete rec[k]; });
+        Object.assign(rec, backup);
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer';
+        alert('Impossible d\u2019enregistrer les modifications. V\u00e9rifiez la connexion et vos droits administrateur.');
+      }
+    });
+  }
+
+  function printRecordDetail() {
+    const body = document.getElementById('detailModalBody');
+    const ttl = document.getElementById('detailModalTitle');
+    if (!body) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = body.innerHTML;
+    tmp.querySelectorAll('.rd-noprint, button').forEach(n => n.remove());
+    tmp.querySelectorAll('audio').forEach(n => { const p = document.createElement('p'); p.textContent = 'Enregistrement vocal joint (non imprimable).'; n.replaceWith(p); });
+    tmp.querySelectorAll('video').forEach(n => { const p = document.createElement('p'); p.textContent = 'Vid\u00e9o jointe (non imprimable).'; const box = n.closest('.media-thumb'); (box || n).replaceWith(p); });
+    const css = (document.getElementById('rd-style') || {}).textContent || '';
+    const title = ttl ? ttl.textContent : 'Fiche';
+    let logo = '';
+    try { logo = new URL('logo-header.png', location.href).href; } catch (e) { /* logo facultatif */ }
+    const html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>' + synEsc(title) + '</title><style>' + css +
+      'body{font-family:Arial,Helvetica,sans-serif;color:#1c1f23;margin:0;padding:8px}' +
+      '.pr-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #c8102e;padding-bottom:12px;margin-bottom:16px}' +
+      '.pr-head img{height:54px}.pr-head h1{margin:0;font-size:18px}.pr-head p{margin:3px 0 0;font-size:12px;color:#666}' +
+      '.rd-card,.rd-stat{break-inside:avoid}img{max-width:100%}' +
+      '.media-grid{display:flex;flex-wrap:wrap;gap:8px}.media-thumb img{max-width:260px;border-radius:6px}' +
+      '@page{margin:14mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>' +
+      '<div class="pr-head">' + (logo ? '<img src="' + logo + '" alt="">' : '') + '<div><h1>Croix-Rouge Gabonaise \u2014 Carnet de terrain</h1><p>' + synEsc(title) + ' \u00b7 Imprim\u00e9 le ' + synEsc(new Date().toLocaleString('fr-FR')) + '</p></div></div>' +
+      tmp.innerHTML + '</body></html>';
+    const f = document.createElement('iframe');
+    f.setAttribute('aria-hidden', 'true');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const w = f.contentWindow;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      try { w.focus(); w.print(); } catch (e) { /* impression annulee */ }
+      setTimeout(() => f.remove(), 60000);
+    };
+    f.onload = () => setTimeout(go, 200);
+    setTimeout(go, 800);
+  }
+
+  function injectRecordToolbar(rec) {
+    recEnsureStyle();
+    const body = document.getElementById('detailModalBody');
+    if (!body) return;
+    const old = document.getElementById('rdToolbar');
+    if (old) old.remove();
+    const isAdmin = typeof AdminAuth !== 'undefined' && AdminAuth.isAdmin;
+    const bar = document.createElement('div');
+    bar.id = 'rdToolbar';
+    bar.className = 'rd-toolbar rd-noprint';
+    bar.innerHTML = (isAdmin ? '<button type="button" class="rd-act" data-a="edit">Modifier</button>' : '') +
+      '<button type="button" class="rd-act" data-a="print">Imprimer</button>' +
+      (isAdmin ? '<button type="button" class="rd-act danger" data-a="delete">Supprimer</button>' : '');
+    bar.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-a]');
+      if (!b) return;
+      const a = b.dataset.a;
+      if (a === 'edit') openEditRecord(rec);
+      else if (a === 'print') printRecordDetail();
+      else if (a === 'delete') deleteRecordFlow(rec, b);
+    });
+    body.insertBefore(bar, body.firstChild);
+  }
+
   async function loadRetourHistory() {
     const el = document.getElementById('retourHistory');
     if (!AdminAuth.isAdmin) { el.innerHTML = ''; return; }
@@ -3468,5 +3833,6 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
   }
 })();
 </script>
+<script src="alert-center.js"></script>
 </body>
 </html>
