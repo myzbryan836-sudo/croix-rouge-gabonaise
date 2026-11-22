@@ -3144,24 +3144,60 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     });
   }
 
-  const SYN = { data: [], cases: [], period: 'all', province: 'all', kpi: 'all', q: '', loadedAt: null, ready: false };
+  const SYN = { data: [], cases: [], period: 'all', province: 'all', ville: 'all', etype: 'all', kpi: 'all', q: '', fit: true, renderId: 0, loadedAt: null, ready: false, map: null, cluster: null };
+
+  const SYN_ICON = {
+    doc: 'M6 2h8l6 6v14H6V2zm7 1.5V9h5.5L13 3.5zM8.5 13h7v1.5h-7V13zm0 3.5h7V18h-7v-1.5z',
+    check: 'M9.5 16.2 5.8 12.5l-1.4 1.4 5.1 5.1L20 8.5l-1.4-1.4z',
+    clock: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5h-2v6l5 3 1-1.7-4-2.3V7z',
+    alert: 'M12 2 1 21h22L12 2zm1 15h-2v-2h2v2zm0-4h-2V9h2v4z',
+    list: 'M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z',
+    home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9z',
+    heart: 'M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z',
+    users: 'M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13zm8 0c-.3 0-.6 0-1 .1 1.2.8 2 1.9 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5z',
+    pin: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z',
+    chart: 'M4 20V10h4v10H4zm6 0V4h4v16h-4zm6 0v-7h4v7h-4z'
+  };
+  function synIcon(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + SYN_ICON[name] + '"/></svg>'; }
 
   function synNorm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
   function synEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
   function synIsRetour(r) { return r.formType === 'retour'; }
-  function synIsUrgent(r) { return !synIsRetour(r) && synNorm(r.level).indexOf('elev') === 0 && r.status !== 'traite' && r.status !== 'resolu' && r.status !== 'annule'; }
+  function synIsUrgent(r) { return !synIsRetour(r) && synNorm(r.level).indexOf('elev') === 0 && r.status !== 'traite'; }
+  function synIsDone(r) { return !synIsRetour(r) && r.status === 'traite'; }
+  function synIsProg(r) { return !synIsRetour(r) && r.status !== 'traite' && !synIsUrgent(r); }
   function synIsVuln(r) { return synIsRetour(r) && synNorm(r.vulnerable) === 'oui'; }
   function synPeople(r) { return Number(synIsRetour(r) ? r.tailleMenage : r.affected) || 0; }
+  function synEventType(r) { return synIsRetour(r) ? (r.sinistre || 'Fiche famille') : (r.eventType || 'Autre'); }
 
   const SYN_KPI = {
     all: () => true,
     sig: (r) => !synIsRetour(r),
     ret: (r) => synIsRetour(r),
+    done: (r) => synIsDone(r),
+    prog: (r) => synIsProg(r),
     urgent: (r) => synIsUrgent(r),
     vuln: (r) => synIsVuln(r),
     people: (r) => synPeople(r) > 0
   };
-  const SYN_KPI_LABEL = { all: 'Tous les cas', sig: 'Signalements', ret: 'Fiches famille', urgent: 'Urgences \u00e0 traiter', vuln: 'Familles vuln\u00e9rables', people: 'Cas avec personnes concern\u00e9es' };
+  const SYN_KPI_LABEL = { all: 'Tous les cas', sig: 'Signalements', ret: 'Fiches famille', done: 'Cas r\u00e9solus', prog: 'Cas en cours', urgent: 'Cas urgents', vuln: 'Familles vuln\u00e9rables', people: 'Cas avec personnes concern\u00e9es' };
+
+  function synCaseState(r) {
+    if (synIsRetour(r)) return { key: 'ret', text: 'Enregistr\u00e9e', cls: '', color: '#2563eb' };
+    if (synIsDone(r)) return { key: 'done', text: 'Trait\u00e9', cls: 'green', color: '#16a34a' };
+    if (synIsUrgent(r)) return { key: 'urgent', text: 'Urgent', cls: 'red', color: '#e11d2e' };
+    return { key: 'prog', text: 'En cours', cls: 'amber', color: '#f59e0b' };
+  }
+
+  function synStatusInfo(r) { return synCaseState(r); }
+
+  function synDate(r, withTime) {
+    const d = new Date(r.timestamp);
+    if (isNaN(d.getTime())) return '';
+    return withTime
+      ? d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleDateString('fr-FR');
+  }
 
   function synGeo(r) {
     let province, ville, quartier;
@@ -3173,6 +3209,14 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     }
     const clean = (v) => { const t = String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); return t || 'Non renseign\u00e9'; };
     return { province: clean(province), ville: clean(ville), quartier: clean(quartier) };
+  }
+
+  function synCoords(r) {
+    const g = r && r.geo;
+    if (!g || g.lat == null || g.lng == null || g.lat === '' || g.lng === '') return null;
+    const lat = Number(g.lat), lng = Number(g.lng);
+    if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null;
+    return [lat, lng];
   }
 
   function synMatches(r, q) {
@@ -3188,7 +3232,10 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     return SYN.data.filter(r => {
       if (!r || typeof r !== 'object') return false;
       if (days && (now - new Date(r.timestamp).getTime()) > days * 86400000) return false;
-      if (SYN.province !== 'all' && synNorm(synGeo(r).province) !== SYN.province) return false;
+      const g = synGeo(r);
+      if (SYN.province !== 'all' && synNorm(g.province) !== SYN.province) return false;
+      if (SYN.ville !== 'all' && synNorm(g.ville) !== SYN.ville) return false;
+      if (SYN.etype !== 'all' && synNorm(synEventType(r)) !== SYN.etype) return false;
       return synMatches(r, q);
     });
   }
@@ -3227,12 +3274,6 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     if (n.indexOf('faib') === 0) return { text: 'Faible', cls: 'green' };
     return { text: r.level ? String(r.level) : '\u2014', cls: '' };
   }
-  function synStatusInfo(r) {
-    if (synIsRetour(r)) return { text: 'Enregistr\u00e9e', cls: '' };
-    return r.status === 'traite' || r.status === 'resolu'
-      ? { text: 'Trait\u00e9', cls: 'green' }
-      : { text: String(r.status || 'Nouveau').replace(/_/g, ' '), cls: 'amber' };
-  }
   function synTitle(r) { return synIsRetour(r) ? (r.chefFamille || 'Famille non nomm\u00e9e') : (r.eventType || '\u00c9v\u00e9nement'); }
 
   function synMeta(n) {
@@ -3243,90 +3284,196 @@ window.adminAuthReady = AdminAuth.init().then(() => {
   function synRow(r) {
     const idx = SYN.cases.push(r) - 1;
     const ret = synIsRetour(r);
-    const d = new Date(r.timestamp);
-    const ds = isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR');
     const sub = ret ? [r.sinistre, r.typeMaison].filter(Boolean).join(' \u00b7 ') : String(r.description || '').slice(0, 70);
     const lv = synLevelInfo(r);
-    const st = synStatusInfo(r);
-    return '<tr class="syn-row' + (synIsUrgent(r) ? ' urgent' : '') + '" data-i="' + idx + '">' +
+    const st = synCaseState(r);
+    return '<tr class="syn-row syn-open' + (synIsUrgent(r) ? ' urgent' : '') + '" data-i="' + idx + '">' +
       '<td class="c-ref">' + synEsc(r.ref || '') + '</td>' +
       '<td><span class="syn-tag ' + (ret ? 'ret' : 'sig') + '">' + (ret ? 'Fiche' : 'Signal.') + '</span></td>' +
       '<td class="c-main"><b>' + synEsc(synTitle(r)) + '</b><small>' + synEsc(sub) + '</small></td>' +
       '<td><span class="syn-chip ' + lv.cls + '">' + synEsc(lv.text) + '</span></td>' +
       '<td><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></td>' +
       '<td class="c-ppl">' + (synPeople(r) || '\u2014') + '</td>' +
-      '<td class="c-date">' + synEsc(ds) + '</td></tr>';
+      '<td class="c-date">' + synEsc(synDate(r, false)) + '</td></tr>';
   }
 
-  function synKpiTile(key, label, value, tone) {
-    return '<button type="button" class="syn-kpi ' + (tone || '') + (SYN.kpi === key ? ' active' : '') + '" data-k="' + key + '"><b>' + Number(value).toLocaleString('fr-FR') + '</b><span>' + label + '</span></button>';
+  function synListItem(r, showPlace) {
+    const idx = SYN.cases.push(r) - 1;
+    const st = synCaseState(r);
+    const g = synGeo(r);
+    const place = showPlace ? g.quartier + ', ' + g.ville : synDate(r, true);
+    return '<div class="syn-latest syn-open" data-i="' + idx + '"><span class="syn-dot" style="background:' + st.color + '"></span>' +
+      '<div class="syn-lmain"><div><b>' + synEsc(r.ref || '') + '</b><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></div>' +
+      '<span>' + synEsc(synTitle(r)) + '</span><small>' + synEsc(showPlace ? place + ' \u00b7 ' + synDate(r, true) : place) + '</small></div></div>';
   }
 
-  function synRender() {
-    const body = document.getElementById('synBody');
-    if (!body) return;
-    SYN.cases = [];
+  function synTile(key, label, value, tone, icon, sub) {
+    return '<button type="button" class="syn-kpi ' + tone + (SYN.kpi === key ? ' active' : '') + '" data-k="' + key + '">' +
+      '<span class="syn-ico">' + synIcon(icon) + '</span>' +
+      '<span class="syn-kbody"><b>' + Number(value).toLocaleString('fr-FR') + '</b><span>' + label + '</span></span>' +
+      (sub ? '<em class="syn-sub">' + sub + '</em>' : '') + '</button>';
+  }
+  function synPct(n, total) { return total ? (n / total * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %' : ''; }
 
-    const provMap = new Map();
-    SYN.data.forEach(r => { if (r && typeof r === 'object') { const g = synGeo(r); provMap.set(synNorm(g.province), g.province); } });
-    if (SYN.province !== 'all' && !provMap.has(SYN.province)) SYN.province = 'all';
-    const sel = document.getElementById('synProvince');
-    sel.innerHTML = '<option value="all">Toutes les provinces</option>' +
-      Array.from(provMap.entries()).sort((a, b) => a[1].localeCompare(b[1], 'fr')).map(e => '<option value="' + synEsc(e[0]) + '">' + synEsc(e[1]) + '</option>').join('');
-    sel.value = SYN.province;
-    document.querySelectorAll('#synPeriod button').forEach(b => b.classList.toggle('on', b.dataset.v === SYN.period));
-    const stamp = document.getElementById('synStamp');
-    if (stamp && SYN.loadedAt) stamp.textContent = 'Mis \u00e0 jour \u00e0 ' + SYN.loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' \u00b7 ' + SYN.data.length + ' enregistrement(s)';
-
-    const base = synBase();
-    const count = (f) => base.filter(f).length;
-    const kpis = '<div class="syn-kpis">' +
-      synKpiTile('all', 'Cas enregistr\u00e9s', base.length, '') +
-      synKpiTile('sig', 'Signalements', count(SYN_KPI.sig), 'red') +
-      synKpiTile('ret', 'Fiches famille', count(SYN_KPI.ret), 'teal') +
-      synKpiTile('urgent', 'Urgences \u00e0 traiter', count(SYN_KPI.urgent), 'red') +
-      synKpiTile('vuln', 'Familles vuln\u00e9rables', count(SYN_KPI.vuln), 'amber') +
-      synKpiTile('people', 'Personnes concern\u00e9es', base.reduce((s, r) => s + synPeople(r), 0), '') + '</div>';
-
-    const rows = synFiltered();
-    const active = SYN.kpi !== 'all'
-      ? '<div class="syn-activebar">Filtre actif : <b>' + SYN_KPI_LABEL[SYN.kpi] + '</b> \u00b7 ' + rows.length + ' cas <button type="button" class="syn-link" data-clear="1">Effacer le filtre</button></div>'
-      : '';
-    if (!rows.length) {
-      body.innerHTML = kpis + active + '<div class="syn-card"><div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div></div>';
-      return;
+  function synChartCommunes(rows) {
+    const m = new Map();
+    rows.forEach(r => {
+      const g = synGeo(r);
+      const k = synNorm(g.ville);
+      if (!m.has(k)) m.set(k, { key: k, name: g.ville, n: 0 });
+      m.get(k).n++;
+    });
+    let list = Array.from(m.values()).sort((a, b) => b.n - a.n);
+    if (list.length > 5) {
+      const rest = list.slice(4).reduce((s, x) => s + x.n, 0);
+      list = list.slice(0, 4).concat([{ key: '', name: 'Autres', n: rest }]);
     }
+    const max = Math.max(1, ...list.map(x => x.n));
+    const colors = ['#2563eb', '#16a34a', '#f59e0b', '#e11d2e', '#9ca3af'];
+    return list.map((x, i) => '<div class="syn-bar-row' + (x.key ? ' click' : '') + '"' + (x.key ? ' data-v="' + synEsc(x.key) + '" title="Filtrer sur cette zone"' : '') + '>' +
+      '<div class="syn-bar-label" title="' + synEsc(x.name) + '">' + synEsc(x.name) + '</div>' +
+      '<div class="syn-bar-track"><i style="width:' + (x.n / max * 100) + '%;background:' + colors[i % 5] + '"></i></div>' +
+      '<div class="syn-bar-val">' + x.n + '</div></div>').join('');
+  }
 
-    const tree = synTree(rows);
-    const provs = synSorted(tree);
-    const maxP = Math.max(1, ...provs.map(p => p.total));
-    const legend = '<div class="syn-legend"><span><i style="background:#c8102e"></i>Signalements</span><span><i style="background:#1f6f68"></i>Fiches famille</span></div>';
-    const bars = provs.map(p => '<div class="syn-bar-row" data-p="' + synEsc(synNorm(p.name)) + '" title="Filtrer sur cette province"><div class="syn-bar-label">' + synEsc(p.name) + '</div>' +
-      '<div class="syn-bar-track"><i class="s" style="width:' + (p.sig / maxP * 100) + '%"></i><i class="r" style="width:' + (p.ret / maxP * 100) + '%"></i></div>' +
-      '<div class="syn-bar-val">' + p.total + '</div></div>').join('');
+  function synChartTypes(rows) {
+    const m = new Map();
+    rows.forEach(r => {
+      const label = synEventType(r);
+      const k = synNorm(label);
+      if (!m.has(k)) m.set(k, { name: label, n: 0 });
+      m.get(k).n++;
+    });
+    let list = Array.from(m.values()).sort((a, b) => b.n - a.n);
+    if (list.length > 5) {
+      const rest = list.slice(4).reduce((s, x) => s + x.n, 0);
+      list = list.slice(0, 4).concat([{ name: 'Autres', n: rest }]);
+    }
+    const total = rows.length || 1;
+    const palette = ['#e11d2e', '#f59e0b', '#16a34a', '#2563eb', '#9ca3af'];
+    let acc = 0;
+    const stops = list.map((t, i) => {
+      const from = acc / total * 100;
+      acc += t.n;
+      return palette[i] + ' ' + from + '% ' + (acc / total * 100) + '%';
+    }).join(',');
+    const legend = list.map((t, i) => '<div><i style="background:' + palette[i] + '"></i>' + synEsc(t.name) + '<span>' + t.n + ' (' + synPct(t.n, total) + ')</span></div>').join('');
+    return '<div class="syn-pie"><div class="syn-donut" style="background:conic-gradient(' + stops + ')"></div><div class="syn-ptable">' + legend + '</div></div>';
+  }
 
-    const dayList = [];
+  function synChartLine(rows) {
+    const days = [];
     for (let i = 13; i >= 0; i--) {
       const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-      dayList.push({ d: d, key: d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(), sig: 0, ret: 0 });
+      days.push({ d: d, key: d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(), n: 0 });
     }
     rows.forEach(r => {
       const t = new Date(r.timestamp);
       if (isNaN(t.getTime())) return;
       const key = t.getFullYear() + '-' + t.getMonth() + '-' + t.getDate();
-      const slot = dayList.find(x => x.key === key);
-      if (slot) { if (synIsRetour(r)) slot.ret++; else slot.sig++; }
+      const slot = days.find(x => x.key === key);
+      if (slot) slot.n++;
     });
-    const maxD = Math.max(1, ...dayList.map(x => x.sig + x.ret));
-    const timeHtml = '<div class="syn-time">' + dayList.map(x => {
-      const tot = x.sig + x.ret;
-      return '<div class="syn-day" title="' + tot + ' cas"><div class="syn-col" style="height:' + (tot ? Math.max(6, tot / maxD * 80) : 0) + '%">' +
-        (x.ret ? '<i class="r" style="flex:' + x.ret + '"></i>' : '') + (x.sig ? '<i class="s" style="flex:' + x.sig + '"></i>' : '') +
-        '</div><span>' + x.d.getDate() + '</span></div>';
-    }).join('') + '</div>';
+    const maxV = Math.max(...days.map(x => x.n));
+    const top = Math.max(4, Math.ceil(maxV / 4) * 4);
+    const W = 320, H = 150, PL = 28, PR = 8, PT = 10, PB = 22;
+    const f = (n) => Math.round(n * 10) / 10;
+    const x = (i) => f(PL + i * (W - PL - PR) / 13);
+    const y = (v) => f(PT + (H - PT - PB) * (1 - v / top));
+    let grid = '';
+    for (let g = 0; g <= 4; g++) {
+      const v = top / 4 * g;
+      grid += '<line x1="' + PL + '" x2="' + (W - PR) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#e5e8ee"/>' +
+        '<text x="' + (PL - 5) + '" y="' + f(y(v) + 3) + '" font-size="9" text-anchor="end" fill="#6b7280">' + v + '</text>';
+    }
+    const pts = days.map((p, i) => x(i) + ',' + y(p.n)).join(' ');
+    const area = 'M' + x(0) + ',' + y(0) + ' L' + days.map((p, i) => x(i) + ',' + y(p.n)).join(' L') + ' L' + x(13) + ',' + y(0) + ' Z';
+    const labels = days.map((p, i) => (i % 3 === 0 || i === 13)
+      ? '<text x="' + x(i) + '" y="' + (H - 6) + '" font-size="9" text-anchor="middle" fill="#6b7280">' + p.d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + '</text>' : '').join('');
+    const dots = days.map((p, i) => '<circle cx="' + x(i) + '" cy="' + y(p.n) + '" r="2.5" fill="#e11d2e"/>').join('');
+    return '<div class="syn-line"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="\u00c9volution sur 14 jours">' + grid +
+      '<path d="' + area + '" fill="rgba(225,29,46,.12)"/><polyline points="' + pts + '" fill="none" stroke="#e11d2e" stroke-width="2"/>' + dots + labels + '</svg></div>';
+  }
+
+  function synFillFilters() {
+    const provMap = new Map(), villeMap = new Map(), typeMap = new Map();
+    SYN.data.forEach(r => {
+      if (!r || typeof r !== 'object') return;
+      const g = synGeo(r);
+      provMap.set(synNorm(g.province), g.province);
+      if (SYN.province === 'all' || synNorm(g.province) === SYN.province) villeMap.set(synNorm(g.ville), g.ville);
+      const t = synEventType(r);
+      typeMap.set(synNorm(t), t);
+    });
+    if (SYN.province !== 'all' && !provMap.has(SYN.province)) SYN.province = 'all';
+    if (SYN.ville !== 'all' && !villeMap.has(SYN.ville)) SYN.ville = 'all';
+    if (SYN.etype !== 'all' && !typeMap.has(SYN.etype)) SYN.etype = 'all';
+    const fill = (id, allLabel, map, cur) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = '<option value="all">' + allLabel + '</option>' +
+        Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], 'fr')).map(e => '<option value="' + synEsc(e[0]) + '">' + synEsc(e[1]) + '</option>').join('');
+      sel.value = cur;
+    };
+    fill('synProvince', 'Toutes les provinces', provMap, SYN.province);
+    fill('synVille', 'Toutes les zones', villeMap, SYN.ville);
+    fill('synType', 'Tous les types', typeMap, SYN.etype);
+    document.querySelectorAll('#synPeriod button').forEach(b => b.classList.toggle('on', b.dataset.v === SYN.period));
+    const stamp = document.getElementById('synStamp');
+    if (stamp && SYN.loadedAt) stamp.textContent = 'Mis \u00e0 jour \u00e0 ' + SYN.loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' \u00b7 ' + SYN.data.length + ' enregistrement(s)';
+  }
+
+  function synSet(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+  function synRender() {
+    if (!document.getElementById('synBody')) return;
+    SYN.cases = [];
+    const token = ++SYN.renderId;
+    synFillFilters();
+
+    const base = synBase();
+    const rows = synFiltered();
+    const count = (f) => base.filter(f).length;
+    const nSig = count(SYN_KPI.sig);
+
+    synSet('synKpis',
+      synTile('sig', 'Total des signalements', nSig, '', 'doc', '') +
+      synTile('done', 'Cas r\u00e9solus', count(SYN_KPI.done), 'green', 'check', synPct(count(SYN_KPI.done), nSig)) +
+      synTile('prog', 'En cours', count(SYN_KPI.prog), 'amber', 'clock', synPct(count(SYN_KPI.prog), nSig)) +
+      synTile('urgent', 'Cas urgents', count(SYN_KPI.urgent), 'red', 'alert', synPct(count(SYN_KPI.urgent), nSig)) +
+      synTile('all', 'Cas enregistr\u00e9s', base.length, '', 'list', '') +
+      synTile('ret', 'Fiches famille', count(SYN_KPI.ret), 'blue', 'home', '') +
+      synTile('vuln', 'Familles vuln\u00e9rables', count(SYN_KPI.vuln), 'amber', 'heart', '') +
+      synTile('people', 'Personnes concern\u00e9es', base.reduce((s, r) => s + synPeople(r), 0), '', 'users', ''));
+
+    synSet('synActive', SYN.kpi !== 'all'
+      ? '<div class="syn-activebar">Filtre actif : <b>' + SYN_KPI_LABEL[SYN.kpi] + '</b> \u00b7 ' + rows.length + ' cas <button type="button" class="syn-link" data-clear="1">Effacer le filtre</button></div>'
+      : '');
+
+    const leg = (color, label, n) => '<div class="syn-leg"><i style="background:' + color + '"></i>' + label + '<b>' + n + '</b></div>';
+    synSet('synLegend', '<h3>L\u00e9gende</h3>' +
+      leg('#16a34a', 'Cas r\u00e9solus', rows.filter(SYN_KPI.done).length) +
+      leg('#f59e0b', 'En cours de traitement', rows.filter(SYN_KPI.prog).length) +
+      leg('#e11d2e', 'Cas urgents', rows.filter(SYN_KPI.urgent).length) +
+      leg('#2563eb', 'Fiches famille (sans position GPS)', rows.filter(SYN_KPI.ret).length));
+
+    const latest = rows.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 6);
+    synSet('synLatest', '<h3>Derniers enregistrements</h3>' + (latest.length ? latest.map(r => synListItem(r, true)).join('') : '<div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div>'));
+
+    synSet('synSecStats',
+      '<div class="syn-card"><h3>' + synIcon('users') + 'Cas par zone</h3>' + (rows.length ? synChartCommunes(rows) : '<div class="syn-empty">Aucune donn\u00e9e.</div>') + '</div>' +
+      '<div class="syn-card"><h3>' + synIcon('doc') + 'Cas par type</h3>' + (rows.length ? synChartTypes(rows) : '<div class="syn-empty">Aucune donn\u00e9e.</div>') + '</div>' +
+      '<div class="syn-card"><h3>' + synIcon('chart') + '\u00c9volution sur 14 jours</h3>' + synChartLine(rows) + '</div>');
+
+    const noGps = rows.filter(r => !synCoords(r)).sort((a, b) => (synIsRetour(a) - synIsRetour(b)) || (new Date(b.timestamp) - new Date(a.timestamp)));
+    const noGpsSig = noGps.filter(r => !synIsRetour(r)).length;
+    synSet('synNoGps', noGps.length
+      ? '<div class="syn-card"><h3>' + synIcon('pin') + 'Sans position GPS (' + noGps.length + ')</h3><p class="syn-hint">' + noGpsSig + ' signalement(s) et ' + (noGps.length - noGpsSig) + ' fiche(s) famille. Ces cas ne sont pas plac\u00e9s sur la carte : aucune position n\u2019est invent\u00e9e.</p>' +
+        noGps.slice(0, 8).map(r => synListItem(r, false)).join('') + (noGps.length > 8 ? '<p class="syn-hint">Les autres cas sont visibles dans le tableau ci-dessous.</p>' : '') + '</div>'
+      : '');
 
     let tbody = '';
-    provs.forEach(p => {
+    synSorted(synTree(rows)).forEach(p => {
       tbody += '<tr class="syn-g1"><td colspan="7"><span class="syn-gname">' + synEsc(p.name) + '</span><span class="syn-gmeta">' + synMeta(p) + '</span></td></tr>';
       synSorted(p.kids).forEach(v => {
         tbody += '<tr class="syn-g2"><td colspan="7"><span class="syn-gname">' + synEsc(v.name) + '</span><span class="syn-gmeta">' + synMeta(v) + '</span></td></tr>';
@@ -3336,35 +3483,144 @@ window.adminAuthReady = AdminAuth.init().then(() => {
         });
       });
     });
+    synSet('synTable', '<div class="syn-card syn-tablecard"><div class="syn-tablehead"><h3>' + synIcon('list') + 'Cas enregistr\u00e9s par zone</h3><span class="syn-hint">' + rows.length + ' cas \u00b7 touchez une ligne pour ouvrir la fiche compl\u00e8te</span></div>' +
+      (rows.length
+        ? '<div class="syn-tablewrap"><table class="syn-table"><thead><tr><th class="c-ref">R\u00e9f.</th><th>Type</th><th>Cas</th><th>Urgence</th><th>Statut</th><th class="c-ppl">Pers.</th><th class="c-date">Date</th></tr></thead><tbody>' + tbody + '</tbody></table></div>'
+        : '<div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div>') + '</div>');
 
-    body.innerHTML = kpis + active +
-      '<div class="syn-grid"><div class="syn-card"><h3>R\u00e9partition par province</h3>' + bars + legend + '</div>' +
-      '<div class="syn-card"><h3>\u00c9volution sur 14 jours</h3>' + timeHtml + legend + '</div></div>' +
-      '<div class="syn-card syn-tablecard"><div class="syn-tablehead"><h3>Cas enregistr\u00e9s par zone</h3><span class="syn-hint">' + rows.length + ' cas \u00b7 touchez une ligne pour ouvrir la fiche compl\u00e8te</span></div>' +
-      '<div class="syn-tablewrap"><table class="syn-table"><thead><tr><th class="c-ref">R\u00e9f.</th><th>Type</th><th>Cas</th><th>Urgence</th><th>Statut</th><th class="c-ppl">Pers.</th><th class="c-date">Date</th></tr></thead><tbody>' + tbody + '</tbody></table></div></div>';
+    const geoCount = rows.filter(r => !synIsRetour(r) && synCoords(r)).length;
+    const cnt = document.getElementById('synMapCount');
+    if (cnt) cnt.textContent = geoCount + ' cas plac\u00e9(s) sur la carte';
+    synEnsureMap().then(() => { if (token === SYN.renderId) synUpdateMap(rows); }).catch(() => synMapError(true));
+  }
+
+  function synMapError(show) {
+    const m = document.getElementById('synMapMsg');
+    if (!m) return;
+    m.style.display = show ? 'flex' : 'none';
+    if (show) m.innerHTML = '<div>La carte n\u2019a pas pu \u00eatre charg\u00e9e. V\u00e9rifiez la connexion internet, puis r\u00e9essayez.</div><button type="button" class="syn-btn" id="synMapRetry">R\u00e9essayer</button>';
+  }
+
+  function synLoadLeaflet() {
+    if (synLoadLeaflet.p) return synLoadLeaflet.p;
+    const load = (tag, attrs) => new Promise((resolve, reject) => {
+      const el = document.createElement(tag);
+      Object.keys(attrs).forEach(k => el.setAttribute(k, attrs[k]));
+      el.onload = resolve;
+      el.onerror = () => reject(new Error('chargement impossible'));
+      document.head.appendChild(el);
+    });
+    const base = 'vendor/leaflet/';
+    synLoadLeaflet.p = (async () => {
+      if (!window.L) {
+        await load('link', { rel: 'stylesheet', href: base + 'leaflet.css' });
+        await load('script', { src: base + 'leaflet.js' });
+      }
+      if (window.L && !window.L.markerClusterGroup) {
+        try {
+          await load('link', { rel: 'stylesheet', href: base + 'MarkerCluster.css' });
+          await load('link', { rel: 'stylesheet', href: base + 'MarkerCluster.Default.css' });
+          await load('script', { src: base + 'leaflet.markercluster.js' });
+        } catch (e) { /* le regroupement est facultatif */ }
+      }
+      return window.L;
+    })().catch(e => { synLoadLeaflet.p = null; throw e; });
+    return synLoadLeaflet.p;
+  }
+
+  async function synEnsureMap() {
+    const el = document.getElementById('synMap');
+    if (!el) throw new Error('conteneur absent');
+    if (SYN.map && SYN.map.getContainer() === el) { synMapError(false); return SYN.map; }
+    const L = await synLoadLeaflet();
+    SYN.map = L.map(el, { zoomControl: true, scrollWheelZoom: true }).setView([-0.8, 11.6], 6);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    }).addTo(SYN.map);
+    SYN.cluster = L.markerClusterGroup ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 }) : L.layerGroup();
+    SYN.cluster.addTo(SYN.map);
+    SYN.map.on('popupopen', (e) => {
+      const root = e.popup.getElement();
+      const btn = root && root.querySelector('[data-open]');
+      if (btn) btn.addEventListener('click', () => { const r = SYN.cases[Number(btn.dataset.open)]; if (r) synOpenCase(r); });
+    });
+    synMapError(false);
+    return SYN.map;
+  }
+
+  function synPopupHtml(r, idx) {
+    const g = synGeo(r);
+    const st = synCaseState(r);
+    const desc = String(r.description || '').replace(/\s+/g, ' ').trim();
+    const shortDesc = desc.length > 110 ? desc.slice(0, 107) + '...' : desc;
+    return '<div class="syn-pop"><div class="syn-pop-head"><b>' + synEsc(r.ref || '') + '</b><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></div>' +
+      '<p><b>Type :</b> ' + synEsc(synTitle(r)) + '</p>' +
+      '<p><b>Zone :</b> ' + synEsc(g.quartier + ', ' + g.ville + ' (' + g.province + ')') + '</p>' +
+      '<p><b>Date :</b> ' + synEsc(synDate(r, true)) + '</p>' +
+      (shortDesc ? '<p><b>Description :</b> ' + synEsc(shortDesc) + '</p>' : '') +
+      '<button type="button" data-open="' + idx + '">Voir les d\u00e9tails</button></div>';
+  }
+
+  function synUpdateMap(rows) {
+    const L = window.L;
+    if (!SYN.map || !SYN.cluster || !L) return;
+    SYN.cluster.clearLayers();
+    const pts = [];
+    rows.forEach(r => {
+      if (synIsRetour(r)) return;
+      const c = synCoords(r);
+      if (!c) return;
+      const idx = SYN.cases.push(r) - 1;
+      const st = synCaseState(r);
+      const icon = L.divIcon({
+        className: 'syn-pinwrap',
+        html: '<span class="syn-pin" style="background:' + st.color + '"></span>',
+        iconSize: [28, 40], iconAnchor: [14, 31], popupAnchor: [0, -28]
+      });
+      const m = L.marker(c, { icon: icon, title: r.ref || '' });
+      m.bindPopup(synPopupHtml(r, idx), { maxWidth: 300 });
+      SYN.cluster.addLayer(m);
+      pts.push(c);
+    });
+    SYN.map.invalidateSize();
+    if (SYN.fit) {
+      SYN.fit = false;
+      if (pts.length) SYN.map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 13 });
+      else SYN.map.setView([-0.8, 11.6], 6);
+    }
+  }
+
+  function synOpenCase(r) {
+    const modal = document.getElementById('detailModal');
+    if (modal) modal.style.zIndex = '10050';
+    window.__allReports = window.__allReports || SYN.data.filter(x => x && !synIsRetour(x));
+    if (synIsRetour(r)) openRetourDetail(r); else openDetailModal(r);
   }
 
   async function synLoad() {
-    const body = document.getElementById('synBody');
-    if (body) body.innerHTML = '<div class="syn-loading">Chargement des donn\u00e9es...</div>';
+    const msg = document.getElementById('synLoadMsg');
+    if (msg) msg.style.display = 'block';
     try {
       SYN.data = await Store.list();
       SYN.loadedAt = new Date();
+      SYN.fit = true;
       synRender();
     } catch (e) {
-      if (body) body.innerHTML = '<div class="syn-loading">Impossible de charger les donn\u00e9es. V\u00e9rifiez la connexion.</div>';
+      synSet('synKpis', '<div class="syn-card" style="grid-column:1/-1"><div class="syn-empty">Impossible de charger les donn\u00e9es. V\u00e9rifiez la connexion, puis appuyez sur Actualiser.</div></div>');
     }
+    if (msg) msg.style.display = 'none';
   }
 
   function synExportCsv() {
     const rows = synFiltered();
     const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-    const out = [['Province', 'Ville', 'Quartier', 'Type', 'R\u00e9f\u00e9rence', 'Libell\u00e9', 'Urgence', 'Statut', 'Personnes concern\u00e9es', 'Date'].map(q).join(';')];
+    const out = [['Province', 'Ville', 'Quartier', 'Type', 'R\u00e9f\u00e9rence', 'Libell\u00e9', 'Urgence', 'Statut', 'Personnes concern\u00e9es', 'Date', 'Latitude', 'Longitude'].map(q).join(';')];
     const dash = '\u2014';
     synSorted(synTree(rows)).forEach(p => synSorted(p.kids).forEach(v => synSorted(v.kids).forEach(n => synSortCases(n.cases).forEach(r => {
-      const lv = synLevelInfo(r), st = synStatusInfo(r), d = new Date(r.timestamp);
+      const lv = synLevelInfo(r), st = synCaseState(r), c = synCoords(r);
       out.push([p.name, v.name, n.name, synIsRetour(r) ? 'Fiche famille' : 'Signalement', r.ref || '', synTitle(r),
-        lv.text === dash ? '' : lv.text, st.text, synPeople(r), isNaN(d.getTime()) ? '' : d.toLocaleString('fr-FR')].map(q).join(';'));
+        lv.text === dash ? '' : lv.text, st.text, synPeople(r), synDate(r, true), c ? c[0] : '', c ? c[1] : ''].map(q).join(';'));
     }))));
     const blob = new Blob(['\uFEFF' + out.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -3379,7 +3635,9 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     synEnsure();
     document.getElementById('synOverlay').style.display = 'block';
     document.body.style.overflow = 'hidden';
+    SYN.fit = true;
     synLoad();
+    if (SYN.map) setTimeout(() => SYN.map.invalidateSize(), 60);
   }
   function synClose() {
     const ov = document.getElementById('synOverlay');
@@ -3393,59 +3651,115 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const st = document.createElement('style');
     st.id = 'syn-style';
     st.textContent = `
-#synOverlay{position:fixed;inset:0;z-index:9000;background:#f4f5f7;overflow:auto;color:#1c1f23}
-.syn-wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
-.syn-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
-.syn-head h2{margin:0;font-size:24px;font-weight:800}
-.syn-head p{margin:2px 0 0;font-size:13px;opacity:.6}
+#synOverlay{position:fixed;inset:0;z-index:9000;background:#f3f5f8;overflow:auto;color:#1c2430}
+.syn-shell{display:flex;min-height:100%}
+.syn-side{width:224px;flex:none;background:#162033;color:#dfe5ef;padding:18px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;align-self:flex-start;box-sizing:border-box}
+.syn-logo{display:flex;align-items:center;gap:10px;margin:2px 4px 22px}
+.syn-logo img{width:40px;height:40px;border-radius:8px;background:#fff;padding:3px;box-sizing:border-box;object-fit:contain}
+.syn-logo b{font-size:15px;line-height:1.15;color:#fff}
+.syn-logo small{display:block;font-weight:500;font-size:11px;color:#9fb0c8}
+.syn-nav{display:flex;flex-direction:column;gap:4px}
+.syn-nav button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:#dfe5ef;padding:11px 12px;border-radius:10px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left}
+.syn-nav button svg{width:20px;height:20px;fill:currentColor;flex:none}
+.syn-nav button:hover{background:#22304a}
+.syn-nav button.on{background:#c8102e;color:#fff}
+.syn-side-foot{margin-top:auto;font-size:14px;line-height:1.4;color:#c9d3e3;padding:0 6px}
+.syn-side-foot i{display:block;width:46px;height:3px;background:#c8102e;margin-top:12px}
+.syn-main{flex:1;min-width:0;padding:20px 22px 60px;max-width:1360px}
+@media (max-width:900px){.syn-side{display:none}.syn-main{padding:14px 12px 50px}}
+.syn-top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.syn-top h2{margin:0;font-size:26px;font-weight:800}
+.syn-top p{margin:3px 0 0;font-size:14px;color:#6b7280}
 .syn-actions{display:flex;flex-wrap:wrap;gap:8px}
-.syn-btn{border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#1c1f23}
+.syn-btn{border:1px solid #d5dae3;background:#fff;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#1c2430;font-family:inherit}
+.syn-btn:hover{background:#f5f6f9}
 .syn-btn.primary{background:#c8102e;border-color:#c8102e;color:#fff}
 .syn-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
-#synSearch{flex:1 1 240px;min-width:180px;width:auto;border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;color:#1c1f23}
-.syn-seg{display:inline-flex;background:#e9ebef;border-radius:10px;padding:3px}
-.syn-seg button{border:0;background:transparent;padding:7px 13px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555}
+#synSearch{flex:1 1 240px;min-width:180px;width:auto;border:1px solid #d5dae3;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;color:#1c2430}
+.syn-filters select{width:auto;min-width:150px;max-width:100%;border:1px solid #d5dae3;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;color:#1c2430}
+.syn-seg{display:inline-flex;background:#e6e9ef;border-radius:10px;padding:3px}
+.syn-seg button{border:0;background:transparent;padding:7px 13px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:#555;font-family:inherit}
 .syn-seg button.on{background:#fff;color:#c8102e;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-#synProvince{width:auto;min-width:190px;max-width:100%;border:1px solid #d9dce1;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;color:#1c1f23}
-.syn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
-.syn-kpi{appearance:none;font:inherit;color:inherit;text-align:left;width:100%;background:#fff;border:2px solid transparent;border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .12s,box-shadow .12s}
-.syn-kpi:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.syn-kpi.active{border-color:#c8102e;background:#fff7f8}
-.syn-kpi b{display:block;font-size:28px;line-height:1.1}
-.syn-kpi span{font-size:12px;opacity:.65}
-.syn-kpi.red b{color:#c8102e}.syn-kpi.teal b{color:#1f6f68}.syn-kpi.amber b{color:#b45309}
-.syn-activebar{background:#fff7f8;border:1px solid #f3c9d0;border-radius:10px;padding:9px 14px;margin:0 0 12px;font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.syn-link{border:0;background:none;color:#c8102e;font-weight:700;cursor:pointer;margin-left:auto;font-size:13px}
-.syn-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-@media (max-width:760px){.syn-grid{grid-template-columns:1fr}}
-.syn-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
-.syn-grid .syn-card{margin-bottom:0}
-.syn-card h3{margin:0 0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c8102e}
-.syn-hint{font-size:12px;opacity:.6}
-.syn-bar-row{display:grid;grid-template-columns:110px 1fr 34px;gap:8px;align-items:center;margin:7px 0;font-size:13px;cursor:pointer;border-radius:8px}
-.syn-bar-row:hover{background:#f6f7f9}
-.syn-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.syn-bar-track{display:flex;background:#eef0f3;border-radius:6px;height:14px;overflow:hidden}
-.syn-bar-track i{display:block;height:100%}
-.syn-bar-track i.s{background:#c8102e}.syn-bar-track i.r{background:#1f6f68}
+.syn-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media (max-width:1000px){.syn-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.syn-kpi{appearance:none;font:inherit;color:inherit;text-align:left;width:100%;background:#fff;border:2px solid transparent;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(16,24,40,.07);cursor:pointer}
+.syn-kpi:hover{box-shadow:0 4px 14px rgba(16,24,40,.12)}
+.syn-kpi:focus-visible{outline:3px solid #9bb8ff;outline-offset:2px}
+.syn-kpi.active{border-color:#c8102e;background:#fff8f9}
+.syn-ico{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:#eceff4;color:#4b5563}
+.syn-ico svg{width:24px;height:24px;fill:currentColor}
+.syn-kpi.green .syn-ico{background:#e3f4e8;color:#16a34a}
+.syn-kpi.amber .syn-ico{background:#fff1d9;color:#d97706}
+.syn-kpi.red .syn-ico{background:#fde5e7;color:#e11d2e}
+.syn-kpi.blue .syn-ico{background:#e4ecfd;color:#2563eb}
+.syn-kbody b{display:block;font-size:30px;line-height:1.05}
+.syn-kbody span{font-size:13px;color:#4b5563}
+.syn-sub{margin-left:auto;font-style:normal;font-weight:800;font-size:14px}
+.syn-kpi.green .syn-sub{color:#16a34a}.syn-kpi.amber .syn-sub{color:#d97706}.syn-kpi.red .syn-sub{color:#e11d2e}
+.syn-activebar{background:#fff8f9;border:1px solid #f3c9d0;border-radius:10px;padding:9px 14px;margin:0 0 12px;font-size:13px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.syn-link{border:0;background:none;color:#c8102e;font-weight:700;cursor:pointer;margin-left:auto;font-size:13px;font-family:inherit}
+.syn-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 3px rgba(16,24,40,.07)}
+.syn-card h3{margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.syn-card h3 svg{width:18px;height:18px;fill:#4b5563;flex:none}
+.syn-hint{font-size:12px;color:#6b7280;margin:0 0 8px}
+.syn-row2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;margin-bottom:12px;align-items:start}
+@media (max-width:1100px){.syn-row2{grid-template-columns:minmax(0,1fr)}}
+.syn-sidecol{display:flex;flex-direction:column;gap:12px}
+.syn-mapcard{padding:12px}
+.syn-maphead{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.syn-maphead h3{margin:0}
+.syn-maphead .syn-btn{margin-left:auto}
+.syn-maphead .syn-hint{margin:0}
+.syn-mapbox{position:relative;border-radius:12px;overflow:hidden;border:1px solid #e3e7ee}
+#synMap{height:520px;width:100%;background:#e8eef3}
+@media (max-width:700px){#synMap{height:380px}}
+.syn-mapmsg{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.93);text-align:center;padding:20px;font-size:14px;z-index:1000}
+.syn-attrib{margin:8px 2px 0;font-size:11px;color:#6b7280}
+.syn-pinwrap{background:transparent;border:0}
+.syn-pin{position:absolute;left:2px;top:2px;width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4);box-sizing:border-box}
+.syn-pin::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#fff}
+.syn-pop{font-size:13px;min-width:230px;color:#1c2430}
+.syn-pop-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.syn-pop-head b{font-size:15px}
+.syn-pop p{margin:4px 0}
+.syn-pop button{margin-top:8px;width:100%;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:8px;padding:8px;font-weight:700;cursor:pointer;font-family:inherit}
+.syn-leg{display:flex;align-items:center;gap:10px;font-size:14px;margin:10px 0}
+.syn-leg i{width:14px;height:14px;border-radius:50%;flex:none}
+.syn-leg b{margin-left:auto}
+.syn-latest{display:flex;gap:10px;padding:10px 6px;border-top:1px solid #eef0f4;cursor:pointer;align-items:flex-start;border-radius:6px}
+.syn-latest:hover{background:#f6f8fb}
+.syn-dot{width:12px;height:12px;border-radius:50%;flex:none;margin-top:5px}
+.syn-lmain{min-width:0;flex:1;font-size:13px}
+.syn-lmain b{font-size:14px;margin-right:6px}
+.syn-lmain small{display:block;color:#6b7280}
+.syn-charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+@media (max-width:1000px){.syn-charts{grid-template-columns:minmax(0,1fr)}}
+.syn-bar-row{display:grid;grid-template-columns:96px 1fr 32px;gap:8px;align-items:center;margin:9px 0;font-size:13px;padding:2px 4px;border-radius:6px}
+.syn-bar-row.click{cursor:pointer}.syn-bar-row.click:hover{background:#f4f6f9}
+.syn-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.syn-bar-track{background:#eceff3;border-radius:6px;height:12px;overflow:hidden}
+.syn-bar-track i{display:block;height:100%;border-radius:6px}
 .syn-bar-val{text-align:right;font-weight:700}
-.syn-legend{display:flex;gap:14px;font-size:12px;margin-top:10px;opacity:.8}
-.syn-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
-.syn-time{display:flex;align-items:flex-end;gap:4px;height:150px}
-.syn-day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:10px;color:#777}
-.syn-col{width:100%;display:flex;flex-direction:column;border-radius:4px;overflow:hidden}
-.syn-col i{display:block}.syn-col i.s{background:#c8102e}.syn-col i.r{background:#1f6f68}
-.syn-tablecard{padding:16px}
+.syn-pie{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.syn-donut{width:128px;height:128px;border-radius:50%;flex:none;position:relative}
+.syn-donut::after{content:'';position:absolute;inset:32px;background:#fff;border-radius:50%}
+.syn-ptable{flex:1;min-width:150px;font-size:13px}
+.syn-ptable div{display:flex;align-items:center;gap:8px;margin:7px 0}
+.syn-ptable i{width:10px;height:10px;border-radius:50%;flex:none}
+.syn-ptable span{margin-left:auto;color:#6b7280}
+.syn-line svg{width:100%;height:auto;display:block}
+.syn-tablecard{padding:16px;margin-top:12px}
 .syn-tablehead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .syn-tablehead h3{margin:0}
-.syn-tablewrap{border:1px solid #e6e8ec;border-radius:12px;overflow:clip}
+.syn-tablehead .syn-hint{margin:0}
+.syn-tablewrap{border:1px solid #e3e7ee;border-radius:12px;overflow:clip}
 table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
-.syn-table thead th{position:sticky;top:0;z-index:2;background:#f8f9fb;text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;padding:10px 12px;border-bottom:1px solid #e6e8ec;white-space:nowrap}
-.syn-table td{padding:10px 12px;border-bottom:1px solid #f0f1f4;vertical-align:middle}
-.syn-g1 td{background:#1c1f23;color:#fff;padding:11px 14px;font-weight:700;letter-spacing:.02em}
-.syn-g2 td{background:#eef0f4;font-weight:700;padding:9px 14px}
-.syn-g3 td{background:#fafbfc;font-weight:600;font-size:12px;color:#444;padding:7px 14px 7px 28px;text-transform:uppercase;letter-spacing:.05em}
-.syn-gmeta{float:right;font-weight:500;font-size:12px;opacity:.85;text-transform:none;letter-spacing:0}
+.syn-table thead th{position:sticky;top:0;z-index:2;background:#f8f9fb;text-align:left;font-size:12px;color:#6b7280;padding:10px 12px;border-bottom:1px solid #e3e7ee;white-space:nowrap}
+.syn-table td{padding:10px 12px;border-bottom:1px solid #eef0f4;vertical-align:middle}
+.syn-g1 td{background:#162033;color:#fff;padding:11px 14px;font-weight:700}
+.syn-g2 td{background:#eceff4;font-weight:700;padding:9px 14px}
+.syn-g3 td{background:#fafbfc;font-weight:600;font-size:13px;color:#444;padding:7px 14px 7px 28px}
+.syn-gmeta{float:right;font-weight:500;font-size:12px;opacity:.85}
 .syn-g1 .syn-urg{color:#ff9aa9}.syn-g2 .syn-urg{color:#c8102e}
 .syn-row{cursor:pointer}
 .syn-row:hover td{background:#f6f8fb}
@@ -3454,17 +3768,18 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
 .c-main b{display:block;font-weight:600}.c-main small{color:#6b7280}
 .c-ppl{text-align:right;font-variant-numeric:tabular-nums}
 .c-date{white-space:nowrap;color:#6b7280}
-.syn-chip{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;background:#eef0f3;color:#555;white-space:nowrap}
-.syn-chip.red{background:#fdecee;color:#c8102e}.syn-chip.amber{background:#fff4e0;color:#b45309}.syn-chip.green{background:#e6f4ea;color:#1e7a3c}
+.syn-chip{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;background:#eceff3;color:#555;white-space:nowrap}
+.syn-chip.red{background:#fde5e7;color:#c8102e}.syn-chip.amber{background:#fff1d9;color:#b45309}.syn-chip.green{background:#e3f4e8;color:#1e7a3c}
 .syn-tag{border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap}
-.syn-tag.sig{background:#fdecee;color:#c8102e}.syn-tag.ret{background:#e3f1ef;color:#1f6f68}
-.syn-loading,.syn-empty{padding:40px 10px;text-align:center;opacity:.65}
+.syn-tag.sig{background:#fde5e7;color:#c8102e}.syn-tag.ret{background:#e4ecfd;color:#2563eb}
+.syn-empty{padding:28px 10px;text-align:center;color:#6b7280;font-size:14px}
+#synLoadMsg{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9100;background:#162033;color:#fff;border-radius:999px;padding:8px 18px;font-size:13px;display:none}
 @media (max-width:700px){.c-ref,.c-ppl{display:none}}
 #synFab{position:fixed;right:16px;bottom:16px;z-index:900;border:0;background:#c8102e;color:#fff;border-radius:999px;padding:12px 18px;font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(200,16,46,.35);cursor:pointer}
 @media print{
   body>*:not(#synOverlay){display:none !important}
   #synOverlay{position:static !important;overflow:visible !important;background:#fff !important}
-  .syn-noprint{display:none !important}
+  .syn-side,.syn-noprint{display:none !important}
   .syn-card,.syn-kpi{box-shadow:none !important;border:1px solid #ddd}
   .syn-table thead th{position:static}
   .syn-g1 td,.syn-g2 td,.syn-g3 td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3475,22 +3790,56 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
     ov.id = 'synOverlay';
     ov.style.display = 'none';
     ov.innerHTML =
-      '<div class="syn-wrap">' +
-        '<div class="syn-head"><div><h2>Tableau de bord \u2014 Carnet de terrain</h2><p id="synStamp"></p></div>' +
-          '<div class="syn-actions syn-noprint">' +
-            '<button type="button" class="syn-btn" id="synRefresh">Actualiser</button>' +
-            '<button type="button" class="syn-btn" id="synCsv">Exporter (CSV)</button>' +
-            '<button type="button" class="syn-btn" id="synPrint">Imprimer</button>' +
-            '<button type="button" class="syn-btn primary" id="synClose">Fermer</button>' +
-          '</div></div>' +
-        '<div class="syn-filters syn-noprint">' +
-          '<input type="search" id="synSearch" placeholder="Rechercher un lieu, une r\u00e9f\u00e9rence, un nom...">' +
-          '<div class="syn-seg" id="synPeriod"><button type="button" data-v="all">Tout</button><button type="button" data-v="30">30 jours</button><button type="button" data-v="7">7 jours</button></div>' +
-          '<select id="synProvince"></select>' +
-        '</div>' +
-        '<div id="synBody"></div>' +
+      '<div class="syn-shell">' +
+        '<aside class="syn-side syn-noprint">' +
+          '<div class="syn-logo"><img src="logo-header.png" alt=""><div><b>Croix-Rouge</b><small>Gabonaise</small></div></div>' +
+          '<nav class="syn-nav">' +
+            '<button type="button" data-nav="synTop" class="on">' + synIcon('home') + 'Tableau de bord</button>' +
+            '<button type="button" data-nav="synSecMap">' + synIcon('pin') + 'Carte</button>' +
+            '<button type="button" data-nav="synSecStats">' + synIcon('chart') + 'Statistiques</button>' +
+            '<button type="button" data-nav="synSecTable">' + synIcon('list') + 'Cas par zone</button>' +
+          '</nav>' +
+          '<div class="syn-side-foot">Ensemble<br>pour des communaut\u00e9s<br>plus s\u00fbres<i></i></div>' +
+        '</aside>' +
+        '<main class="syn-main">' +
+          '<div id="synTop" class="syn-top"><div><h2>Tableau de bord</h2><p>Suivi des signalements et des fiches sur le terrain \u00b7 <span id="synStamp"></span></p></div>' +
+            '<div class="syn-actions syn-noprint">' +
+              '<button type="button" class="syn-btn" id="synRefresh">Actualiser</button>' +
+              '<button type="button" class="syn-btn" id="synCsv">Exporter (CSV)</button>' +
+              '<button type="button" class="syn-btn" id="synPrint">Imprimer</button>' +
+              '<button type="button" class="syn-btn primary" id="synClose">Fermer</button>' +
+            '</div></div>' +
+          '<div class="syn-filters syn-noprint">' +
+            '<input type="search" id="synSearch" placeholder="Rechercher un lieu, une r\u00e9f\u00e9rence, un nom...">' +
+            '<select id="synProvince" aria-label="Province"></select>' +
+            '<select id="synVille" aria-label="Zone"></select>' +
+            '<select id="synType" aria-label="Type d\u2019\u00e9v\u00e9nement"></select>' +
+            '<div class="syn-seg" id="synPeriod"><button type="button" data-v="all">Tout</button><button type="button" data-v="30">30 jours</button><button type="button" data-v="7">7 jours</button></div>' +
+            '<button type="button" class="syn-btn" id="synReset">R\u00e9initialiser</button>' +
+          '</div>' +
+          '<div id="synBody">' +
+            '<div id="synKpis" class="syn-kpis"></div>' +
+            '<div id="synActive"></div>' +
+            '<div class="syn-row2" id="synSecMap">' +
+              '<div class="syn-card syn-mapcard">' +
+                '<div class="syn-maphead"><h3>' + synIcon('pin') + 'Cartographie GPS</h3><span class="syn-hint" id="synMapCount"></span><button type="button" class="syn-btn syn-noprint" id="synFit">Recentrer</button></div>' +
+                '<div class="syn-mapbox"><div id="synMap"></div><div id="synMapMsg" class="syn-mapmsg"></div></div>' +
+                '<p class="syn-attrib">Fond de carte \u00a9 contributeurs OpenStreetMap. Les tuiles de la carte n\u00e9cessitent une connexion internet.</p>' +
+              '</div>' +
+              '<div class="syn-sidecol"><div class="syn-card" id="synLegend"></div><div class="syn-card" id="synLatest"></div></div>' +
+            '</div>' +
+            '<div id="synSecStats" class="syn-charts"></div>' +
+            '<div id="synNoGps"></div>' +
+            '<div id="synSecTable"><div id="synTable"></div></div>' +
+          '</div>' +
+        '</main>' +
       '</div>';
     document.body.appendChild(ov);
+
+    const lm = document.createElement('div');
+    lm.id = 'synLoadMsg';
+    lm.textContent = 'Chargement des donn\u00e9es...';
+    document.body.appendChild(lm);
 
     const fab = document.createElement('button');
     fab.id = 'synFab';
@@ -3501,35 +3850,55 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
     fab.addEventListener('click', synOpen);
     document.body.appendChild(fab);
 
+    const resetFilters = () => {
+      SYN.period = 'all'; SYN.province = 'all'; SYN.ville = 'all'; SYN.etype = 'all'; SYN.kpi = 'all'; SYN.q = ''; SYN.fit = true;
+      const s = document.getElementById('synSearch');
+      if (s) s.value = '';
+    };
+
     ov.addEventListener('click', (e) => {
       const t = e.target;
       if (t.closest('#synClose')) { synClose(); return; }
       if (t.closest('#synRefresh')) { synLoad(); return; }
       if (t.closest('#synCsv')) { synExportCsv(); return; }
       if (t.closest('#synPrint')) { window.print(); return; }
+      if (t.closest('#synReset')) { resetFilters(); synRender(); return; }
+      if (t.closest('#synFit')) { SYN.fit = true; synRender(); return; }
+      if (t.closest('#synMapRetry')) { synMapError(false); synRender(); return; }
+      const nav = t.closest('[data-nav]');
+      if (nav) {
+        const target = document.getElementById(nav.dataset.nav);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        ov.querySelectorAll('.syn-nav button').forEach(b => b.classList.toggle('on', b === nav));
+        return;
+      }
       const seg = t.closest('#synPeriod button');
-      if (seg) { SYN.period = seg.dataset.v; synRender(); return; }
+      if (seg) { SYN.period = seg.dataset.v; SYN.fit = true; synRender(); return; }
       const tile = t.closest('.syn-kpi');
-      if (tile) { const k = tile.dataset.k; SYN.kpi = (k === 'all' || SYN.kpi === k) ? 'all' : k; synRender(); return; }
-      if (t.closest('[data-clear]')) { SYN.kpi = 'all'; synRender(); return; }
-      const bar = t.closest('.syn-bar-row');
-      if (bar) { SYN.province = (SYN.province === bar.dataset.p) ? 'all' : bar.dataset.p; synRender(); return; }
-      const row = t.closest('.syn-row');
+      if (tile) { const k = tile.dataset.k; SYN.kpi = (k === 'all' || SYN.kpi === k) ? 'all' : k; SYN.fit = true; synRender(); return; }
+      if (t.closest('[data-clear]')) { SYN.kpi = 'all'; SYN.fit = true; synRender(); return; }
+      const bar = t.closest('.syn-bar-row[data-v]');
+      if (bar) { SYN.ville = (SYN.ville === bar.dataset.v) ? 'all' : bar.dataset.v; SYN.fit = true; synRender(); return; }
+      const row = t.closest('.syn-open');
       if (row) {
         const r = SYN.cases[Number(row.dataset.i)];
-        if (!r) return;
-        const modal = document.getElementById('detailModal');
-        if (modal) modal.style.zIndex = '10050';
-        window.__allReports = window.__allReports || SYN.data.filter(x => x && !synIsRetour(x));
-        if (synIsRetour(r)) openRetourDetail(r); else openDetailModal(r);
+        if (r) synOpenCase(r);
       }
     });
-    document.getElementById('synProvince').addEventListener('change', (e) => { SYN.province = e.target.value; synRender(); });
+    const onSel = (id, key) => document.getElementById(id).addEventListener('change', (e) => {
+      SYN[key] = e.target.value;
+      if (key === 'province') SYN.ville = 'all';
+      SYN.fit = true;
+      synRender();
+    });
+    onSel('synProvince', 'province');
+    onSel('synVille', 'ville');
+    onSel('synType', 'etype');
     let synTimer = null;
     document.getElementById('synSearch').addEventListener('input', (e) => {
       const v = e.target.value;
       clearTimeout(synTimer);
-      synTimer = setTimeout(() => { SYN.q = v; synRender(); }, 150);
+      synTimer = setTimeout(() => { SYN.q = v; SYN.fit = true; synRender(); }, 180);
     });
 
     const dm = document.getElementById('detailModal');
@@ -3538,6 +3907,11 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
         if (!dm.classList.contains('show') && ov.style.display === 'block') synRender();
       }).observe(dm, { attributes: true, attributeFilter: ['class'] });
     }
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || ov.style.display !== 'block') return;
+      const modalOpen = dm && dm.classList.contains('show');
+      if (!modalOpen && !document.getElementById('editOverlay')) synClose();
+    });
   }
 
   window.syntheseSync = function () {
