@@ -3144,7 +3144,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     });
   }
 
-  const SYN = { data: [], cases: [], period: 'all', province: 'all', ville: 'all', etype: 'all', kpi: 'all', q: '', fit: true, renderId: 0, loadedAt: null, ready: false, map: null, cluster: null };
+  const SYN = { data: [], cases: [], period: 'all', province: 'all', ville: 'all', etype: 'all', kpi: 'all', q: '', fit: true, renderId: 0, loadedAt: null, ready: false, map: null, cluster: null, markers: new Map(), size: 'n', measureOn: false, measurePts: [], measureLayer: null, routeLayer: null, routePick: null, routeOk: false, meLayer: null, hl: null, toastTimer: null };
 
   const SYN_ICON = {
     doc: 'M6 2h8l6 6v14H6V2zm7 1.5V9h5.5L13 3.5zM8.5 13h7v1.5h-7V13zm0 3.5h7V18h-7v-1.5z',
@@ -3287,14 +3287,16 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const sub = ret ? [r.sinistre, r.typeMaison].filter(Boolean).join(' \u00b7 ') : String(r.description || '').slice(0, 70);
     const lv = synLevelInfo(r);
     const st = synCaseState(r);
+    const gps = !ret && synCoords(r) ? '<span class="syn-gpsdot" title="Position GPS disponible">' + synIcon('pin') + '</span>' : '';
     return '<tr class="syn-row syn-open' + (synIsUrgent(r) ? ' urgent' : '') + '" data-i="' + idx + '">' +
       '<td class="c-ref">' + synEsc(r.ref || '') + '</td>' +
       '<td><span class="syn-tag ' + (ret ? 'ret' : 'sig') + '">' + (ret ? 'Fiche' : 'Signal.') + '</span></td>' +
-      '<td class="c-main"><b>' + synEsc(synTitle(r)) + '</b><small>' + synEsc(sub) + '</small></td>' +
+      '<td class="c-main"><b>' + gps + synEsc(synTitle(r)) + '</b><small>' + synEsc(sub) + '</small></td>' +
       '<td><span class="syn-chip ' + lv.cls + '">' + synEsc(lv.text) + '</span></td>' +
       '<td><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></td>' +
       '<td class="c-ppl">' + (synPeople(r) || '\u2014') + '</td>' +
-      '<td class="c-date">' + synEsc(synDate(r, false)) + '</td></tr>';
+      '<td class="c-date">' + synEsc(synDate(r, false)) + '</td>' +
+      '<td class="c-act"><button type="button" class="syn-mini syn-detail" data-i="' + idx + '">D\u00e9tails</button></td></tr>';
   }
 
   function synListItem(r, showPlace) {
@@ -3304,7 +3306,8 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const place = showPlace ? g.quartier + ', ' + g.ville : synDate(r, true);
     return '<div class="syn-latest syn-open" data-i="' + idx + '"><span class="syn-dot" style="background:' + st.color + '"></span>' +
       '<div class="syn-lmain"><div><b>' + synEsc(r.ref || '') + '</b><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></div>' +
-      '<span>' + synEsc(synTitle(r)) + '</span><small>' + synEsc(showPlace ? place + ' \u00b7 ' + synDate(r, true) : place) + '</small></div></div>';
+      '<span>' + synEsc(synTitle(r)) + '</span><small>' + synEsc(showPlace ? place + ' \u00b7 ' + synDate(r, true) : place) + '</small></div>' +
+      '<button type="button" class="syn-mini syn-detail" data-i="' + idx + '">D\u00e9tails</button></div>';
   }
 
   function synTile(key, label, value, tone, icon, sub) {
@@ -3474,18 +3477,18 @@ window.adminAuthReady = AdminAuth.init().then(() => {
 
     let tbody = '';
     synSorted(synTree(rows)).forEach(p => {
-      tbody += '<tr class="syn-g1"><td colspan="7"><span class="syn-gname">' + synEsc(p.name) + '</span><span class="syn-gmeta">' + synMeta(p) + '</span></td></tr>';
+      tbody += '<tr class="syn-g1"><td colspan="8"><span class="syn-gname">' + synEsc(p.name) + '</span><span class="syn-gmeta">' + synMeta(p) + '</span></td></tr>';
       synSorted(p.kids).forEach(v => {
-        tbody += '<tr class="syn-g2"><td colspan="7"><span class="syn-gname">' + synEsc(v.name) + '</span><span class="syn-gmeta">' + synMeta(v) + '</span></td></tr>';
+        tbody += '<tr class="syn-g2"><td colspan="8"><span class="syn-gname">' + synEsc(v.name) + '</span><span class="syn-gmeta">' + synMeta(v) + '</span></td></tr>';
         synSorted(v.kids).forEach(q => {
-          tbody += '<tr class="syn-g3"><td colspan="7">' + synEsc(q.name) + '<span class="syn-gmeta">' + q.total + ' cas</span></td></tr>';
+          tbody += '<tr class="syn-g3"><td colspan="8">' + synEsc(q.name) + '<span class="syn-gmeta">' + q.total + ' cas</span></td></tr>';
           synSortCases(q.cases).forEach(r => { tbody += synRow(r); });
         });
       });
     });
-    synSet('synTable', '<div class="syn-card syn-tablecard"><div class="syn-tablehead"><h3>' + synIcon('list') + 'Cas enregistr\u00e9s par zone</h3><span class="syn-hint">' + rows.length + ' cas \u00b7 touchez une ligne pour ouvrir la fiche compl\u00e8te</span></div>' +
+    synSet('synTable', '<div class="syn-card syn-tablecard"><div class="syn-tablehead"><h3>' + synIcon('list') + 'Cas enregistr\u00e9s par zone</h3><span class="syn-hint">' + rows.length + ' cas \u00b7 touchez une ligne pour la situer sur la carte</span></div>' +
       (rows.length
-        ? '<div class="syn-tablewrap"><table class="syn-table"><thead><tr><th class="c-ref">R\u00e9f.</th><th>Type</th><th>Cas</th><th>Urgence</th><th>Statut</th><th class="c-ppl">Pers.</th><th class="c-date">Date</th></tr></thead><tbody>' + tbody + '</tbody></table></div>'
+        ? '<div class="syn-tablewrap"><table class="syn-table"><thead><tr><th class="c-ref">R\u00e9f.</th><th>Type</th><th>Cas</th><th>Urgence</th><th>Statut</th><th class="c-ppl">Pers.</th><th class="c-date">Date</th><th class="c-act"></th></tr></thead><tbody>' + tbody + '</tbody></table></div>'
         : '<div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div>') + '</div>');
 
     const geoCount = rows.filter(r => !synIsRetour(r) && synCoords(r)).length;
@@ -3534,16 +3537,31 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     if (SYN.map && SYN.map.getContainer() === el) { synMapError(false); return SYN.map; }
     const L = await synLoadLeaflet();
     SYN.map = L.map(el, { zoomControl: true, scrollWheelZoom: true }).setView([-0.8, 11.6], 6);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
-    }).addTo(SYN.map);
+    const osm = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+    const bases = {
+      'Plan': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: osm }),
+      'Humanitaire': L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 20, subdomains: 'abc', attribution: osm + ', style HOT h\u00e9berg\u00e9 par OpenStreetMap France' }),
+      'Satellite': L.layerGroup([
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community' }),
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+      ]),
+      'Relief': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, subdomains: 'abc', attribution: osm + ', SRTM | Style : &copy; OpenTopoMap (CC-BY-SA)' })
+    };
+    let pick = 'Plan';
+    try { const saved = localStorage.getItem('rc_map_base'); if (saved && bases[saved]) pick = saved; } catch (e) { /* stockage indisponible */ }
+    bases[pick].addTo(SYN.map);
+    L.control.layers(bases, null, { position: 'topright' }).addTo(SYN.map);
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(SYN.map);
+    SYN.map.on('baselayerchange', (ev) => { try { localStorage.setItem('rc_map_base', ev.name); } catch (e) { /* ignore */ } });
+    SYN.map.on('click', synMapClick);
     SYN.cluster = L.markerClusterGroup ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 }) : L.layerGroup();
     SYN.cluster.addTo(SYN.map);
     SYN.map.on('popupopen', (e) => {
       const root = e.popup.getElement();
       const btn = root && root.querySelector('[data-open]');
       if (btn) btn.addEventListener('click', () => { const r = SYN.cases[Number(btn.dataset.open)]; if (r) synOpenCase(r); });
+      const rb = root && root.querySelector('[data-route]');
+      if (rb) rb.addEventListener('click', () => { const r = SYN.cases[Number(rb.dataset.route)]; if (r) synStartRoute(r); });
     });
     synMapError(false);
     return SYN.map;
@@ -3551,6 +3569,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
 
   function synPopupHtml(r, idx) {
     const g = synGeo(r);
+    const c = synCoords(r) || [0, 0];
     const st = synCaseState(r);
     const desc = String(r.description || '').replace(/\s+/g, ' ').trim();
     const shortDesc = desc.length > 110 ? desc.slice(0, 107) + '...' : desc;
@@ -3559,13 +3578,16 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       '<p><b>Zone :</b> ' + synEsc(g.quartier + ', ' + g.ville + ' (' + g.province + ')') + '</p>' +
       '<p><b>Date :</b> ' + synEsc(synDate(r, true)) + '</p>' +
       (shortDesc ? '<p><b>Description :</b> ' + synEsc(shortDesc) + '</p>' : '') +
-      '<button type="button" data-open="' + idx + '">Voir les d\u00e9tails</button></div>';
+      '<button type="button" class="syn-pop-main" data-open="' + idx + '">Voir les d\u00e9tails</button>' +
+      '<div class="syn-pop-act"><button type="button" data-route="' + idx + '">Itin\u00e9raire</button>' +
+      '<a href="https://www.google.com/maps/dir/?api=1&amp;destination=' + c[0] + ',' + c[1] + '&amp;travelmode=driving" target="_blank" rel="noopener">Google Maps</a></div></div>';
   }
 
   function synUpdateMap(rows) {
     const L = window.L;
     if (!SYN.map || !SYN.cluster || !L) return;
     SYN.cluster.clearLayers();
+    SYN.markers = new Map();
     const pts = [];
     rows.forEach(r => {
       if (synIsRetour(r)) return;
@@ -3581,6 +3603,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       const m = L.marker(c, { icon: icon, title: r.ref || '' });
       m.bindPopup(synPopupHtml(r, idx), { maxWidth: 300 });
       SYN.cluster.addLayer(m);
+      SYN.markers.set(r.id, m);
       pts.push(c);
     });
     SYN.map.invalidateSize();
@@ -3589,6 +3612,169 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       if (pts.length) SYN.map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 13 });
       else SYN.map.setView([-0.8, 11.6], 6);
     }
+  }
+
+  function synToast(msg, ms) {
+    let el = document.getElementById('synToast');
+    if (!el) { el = document.createElement('div'); el.id = 'synToast'; document.body.appendChild(el); }
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(SYN.toastTimer);
+    SYN.toastTimer = setTimeout(() => { el.style.display = 'none'; }, ms || 3500);
+  }
+
+  function synInfo(text, clearable) {
+    const el = document.getElementById('synMapInfo');
+    if (!el) return;
+    el.innerHTML = '<span>' + synEsc(text) + '</span>' + (clearable ? '<button type="button" id="synInfoClear">Effacer</button>' : '');
+    el.style.display = 'flex';
+  }
+  function synHideInfo() { const el = document.getElementById('synMapInfo'); if (el) el.style.display = 'none'; }
+
+  function synSetSize(mode) {
+    SYN.size = mode;
+    const card = document.querySelector('.syn-mapcard');
+    if (card) { card.classList.toggle('fs', mode === 'f'); card.classList.toggle('big', mode === 'l'); }
+    document.querySelectorAll('#synSize button').forEach(b => b.classList.toggle('on', b.dataset.s === mode));
+    if (SYN.map) setTimeout(() => SYN.map.invalidateSize(), 80);
+  }
+
+  function synHighlight(c) {
+    const L = window.L;
+    if (!L || !SYN.map) return;
+    if (SYN.hl) SYN.map.removeLayer(SYN.hl);
+    const mine = L.circleMarker(c, { radius: 26, color: '#c8102e', weight: 3, fillColor: '#c8102e', fillOpacity: 0.12 }).addTo(SYN.map);
+    SYN.hl = mine;
+    setTimeout(() => { if (SYN.hl === mine && SYN.map) { SYN.map.removeLayer(mine); SYN.hl = null; } }, 5000);
+  }
+
+  function synFocusCase(r) {
+    const c = synIsRetour(r) ? null : synCoords(r);
+    if (!c) {
+      synToast('Ce cas n\u2019a pas de position GPS : ouverture de sa fiche.');
+      synOpenCase(r);
+      return;
+    }
+    const sec = document.getElementById('synSecMap');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    synEnsureMap().then(() => {
+      SYN.map.invalidateSize();
+      const mk = SYN.markers.get(r.id);
+      const open = () => { if (mk) mk.openPopup(); };
+      if (mk && SYN.cluster.zoomToShowLayer) SYN.cluster.zoomToShowLayer(mk, open);
+      else { SYN.map.setView(c, 16); setTimeout(open, 250); }
+      synHighlight(c);
+    }).catch(() => synToast('La carte n\u2019est pas disponible pour le moment.'));
+  }
+
+  function synGetPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('indisponible')); return; }
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve({ latlng: [p.coords.latitude, p.coords.longitude], acc: p.coords.accuracy }),
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+    });
+  }
+
+  async function synLocate() {
+    try {
+      const p = await synGetPosition();
+      await synEnsureMap();
+      const L = window.L;
+      if (SYN.meLayer) SYN.map.removeLayer(SYN.meLayer);
+      SYN.meLayer = L.layerGroup([
+        L.circle(p.latlng, { radius: p.acc || 30, color: '#2563eb', weight: 1, fillColor: '#2563eb', fillOpacity: 0.12 }),
+        L.circleMarker(p.latlng, { radius: 7, color: '#fff', weight: 2, fillColor: '#2563eb', fillOpacity: 1 })
+      ]).addTo(SYN.map);
+      SYN.map.setView(p.latlng, Math.max(SYN.map.getZoom(), 14));
+      synToast('Votre position (pr\u00e9cision environ ' + Math.round(p.acc || 0) + ' m).');
+    } catch (e) {
+      synToast('Position indisponible : autorisez la localisation dans le navigateur.', 5000);
+    }
+  }
+
+  function synClearRoute() {
+    if (SYN.routeLayer && SYN.map) SYN.map.removeLayer(SYN.routeLayer);
+    SYN.routeLayer = null;
+    SYN.routePick = null;
+  }
+
+  async function synStartRoute(r) {
+    const dest = synCoords(r);
+    if (!dest) return;
+    if (!SYN.routeOk) {
+      if (!confirm('Pour calculer l\u2019itin\u00e9raire, les coordonn\u00e9es de d\u00e9part et d\u2019arriv\u00e9e sont envoy\u00e9es au service public OSRM (router.project-osrm.org). Continuer ?')) return;
+      SYN.routeOk = true;
+    }
+    synToast('Recherche de votre position...');
+    let from = null;
+    try { from = (await synGetPosition()).latlng; } catch (e) { from = null; }
+    if (!from) {
+      SYN.routePick = dest;
+      synInfo('Position indisponible : cliquez sur la carte pour choisir le point de d\u00e9part.', true);
+      return;
+    }
+    synDrawRoute(from, dest);
+  }
+
+  async function synDrawRoute(from, to) {
+    const L = window.L;
+    synClearRoute();
+    synInfo('Calcul de l\u2019itin\u00e9raire...', false);
+    const url = 'https://router.project-osrm.org/route/v1/driving/' + from[1] + ',' + from[0] + ';' + to[1] + ',' + to[0] + '?overview=full&geometries=geojson';
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      const j = await res.json();
+      if (!j || j.code !== 'Ok' || !j.routes || !j.routes.length) throw new Error('aucun itineraire');
+      const rt = j.routes[0];
+      SYN.routeLayer = L.layerGroup([
+        L.geoJSON(rt.geometry, { style: { color: '#2563eb', weight: 5, opacity: 0.85 } }),
+        L.circleMarker(from, { radius: 7, color: '#fff', weight: 2, fillColor: '#2563eb', fillOpacity: 1 }),
+        L.circleMarker(to, { radius: 7, color: '#fff', weight: 2, fillColor: '#e11d2e', fillOpacity: 1 })
+      ]).addTo(SYN.map);
+      const all = [from, to].concat(rt.geometry.coordinates.map(c => [c[1], c[0]]));
+      SYN.map.fitBounds(L.latLngBounds(all), { padding: [50, 50] });
+      const km = (rt.distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+      const min = Math.round(rt.duration / 60);
+      const dur = min >= 60 ? Math.floor(min / 60) + ' h ' + (min % 60) + ' min' : min + ' min';
+      synInfo('Itin\u00e9raire : ' + km + ' km \u00b7 ' + dur + ' en voiture (estimation indicative)', true);
+    } catch (e) {
+      synInfo('Itin\u00e9raire indisponible (service ou connexion).', true);
+    }
+    clearTimeout(timer);
+  }
+
+  function synClearMeasure() {
+    if (SYN.measureLayer && SYN.map) SYN.map.removeLayer(SYN.measureLayer);
+    SYN.measureLayer = null;
+    SYN.measurePts = [];
+  }
+  function synMeasureToggle() {
+    SYN.measureOn = !SYN.measureOn;
+    const btn = document.getElementById('synMeasure');
+    if (btn) btn.classList.toggle('on', SYN.measureOn);
+    if (SYN.map) SYN.map.getContainer().style.cursor = SYN.measureOn ? 'crosshair' : '';
+    synClearMeasure();
+    if (SYN.measureOn) synInfo('Mesure : cliquez sur la carte pour ajouter des points.', true);
+    else synHideInfo();
+  }
+  function synMeasureAdd(latlng) {
+    const L = window.L;
+    SYN.measurePts.push([latlng.lat, latlng.lng]);
+    if (SYN.measureLayer) SYN.map.removeLayer(SYN.measureLayer);
+    const parts = SYN.measurePts.map(p => L.circleMarker(p, { radius: 4, color: '#c8102e', weight: 2, fillColor: '#fff', fillOpacity: 1 }));
+    if (SYN.measurePts.length > 1) parts.push(L.polyline(SYN.measurePts, { color: '#c8102e', weight: 3, dashArray: '6 6' }));
+    SYN.measureLayer = L.layerGroup(parts).addTo(SYN.map);
+    let d = 0;
+    for (let i = 1; i < SYN.measurePts.length; i++) d += SYN.map.distance(SYN.measurePts[i - 1], SYN.measurePts[i]);
+    synInfo('Distance mesur\u00e9e (ligne droite) : ' + (d / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' km', true);
+  }
+  function synMapClick(e) {
+    if (SYN.routePick) { const dest = SYN.routePick; SYN.routePick = null; synDrawRoute([e.latlng.lat, e.latlng.lng], dest); return; }
+    if (SYN.measureOn) synMeasureAdd(e.latlng);
   }
 
   function synOpenCase(r) {
@@ -3640,6 +3826,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     if (SYN.map) setTimeout(() => SYN.map.invalidateSize(), 60);
   }
   function synClose() {
+    if (SYN.size === 'f') synSetSize('n');
     const ov = document.getElementById('synOverlay');
     if (ov) ov.style.display = 'none';
     document.body.style.overflow = '';
@@ -3708,7 +3895,8 @@ window.adminAuthReady = AdminAuth.init().then(() => {
 .syn-mapcard{padding:12px}
 .syn-maphead{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .syn-maphead h3{margin:0}
-.syn-maphead .syn-btn{margin-left:auto}
+.syn-maptools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.syn-btn.on{background:#c8102e;border-color:#c8102e;color:#fff}
 .syn-maphead .syn-hint{margin:0}
 .syn-mapbox{position:relative;border-radius:12px;overflow:hidden;border:1px solid #e3e7ee}
 #synMap{height:520px;width:100%;background:#e8eef3}
@@ -3722,7 +3910,22 @@ window.adminAuthReady = AdminAuth.init().then(() => {
 .syn-pop-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .syn-pop-head b{font-size:15px}
 .syn-pop p{margin:4px 0}
-.syn-pop button{margin-top:8px;width:100%;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:8px;padding:8px;font-weight:700;cursor:pointer;font-family:inherit}
+.syn-pop .syn-pop-main{margin-top:8px;width:100%;border:1px solid #2563eb;background:#fff;color:#2563eb;border-radius:8px;padding:8px;font-weight:700;cursor:pointer;font-family:inherit}
+.syn-pop-act{display:flex;gap:8px;margin-top:8px}
+.syn-pop-act button,.syn-pop-act a{flex:1;text-align:center;border:1px solid #d5dae3;background:#fff;color:#1c2430;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit}
+.syn-mapinfo{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:900;background:#fff;border-radius:10px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,.25);font-size:13px;font-weight:600;display:none;align-items:center;gap:12px;max-width:92%}
+.syn-mapinfo button{border:0;background:none;color:#c8102e;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px}
+.syn-mapcard.big #synMap{height:760px}
+.syn-mapcard.fs{position:fixed;inset:0;z-index:9050;border-radius:0;display:flex;flex-direction:column;overflow:auto}
+.syn-mapcard.fs .syn-mapbox{flex:1;min-height:0}
+.syn-mapcard.fs #synMap{height:100%;min-height:300px}
+.syn-mini{border:1px solid #d5dae3;background:#fff;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;color:#1c2430;cursor:pointer;font-family:inherit;white-space:nowrap}
+.syn-mini:hover{background:#f1f3f7}
+.syn-latest .syn-mini{margin-left:auto;align-self:center}
+.syn-gpsdot{display:inline-flex;vertical-align:-2px;margin-right:4px}
+.syn-gpsdot svg{width:14px;height:14px;fill:#16a34a}
+.c-act{text-align:right;white-space:nowrap}
+#synToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10200;background:#162033;color:#fff;border-radius:12px;padding:10px 16px;font-size:13px;display:none;max-width:90vw;text-align:center}
 .syn-leg{display:flex;align-items:center;gap:10px;font-size:14px;margin:10px 0}
 .syn-leg i{width:14px;height:14px;border-radius:50%;flex:none}
 .syn-leg b{margin-left:auto}
@@ -3822,9 +4025,15 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
             '<div id="synActive"></div>' +
             '<div class="syn-row2" id="synSecMap">' +
               '<div class="syn-card syn-mapcard">' +
-                '<div class="syn-maphead"><h3>' + synIcon('pin') + 'Cartographie GPS</h3><span class="syn-hint" id="synMapCount"></span><button type="button" class="syn-btn syn-noprint" id="synFit">Recentrer</button></div>' +
-                '<div class="syn-mapbox"><div id="synMap"></div><div id="synMapMsg" class="syn-mapmsg"></div></div>' +
-                '<p class="syn-attrib">Fond de carte \u00a9 contributeurs OpenStreetMap. Les tuiles de la carte n\u00e9cessitent une connexion internet.</p>' +
+                '<div class="syn-maphead"><h3>' + synIcon('pin') + 'Cartographie GPS</h3><span class="syn-hint" id="synMapCount"></span>' +
+                  '<div class="syn-maptools syn-noprint">' +
+                    '<div class="syn-seg" id="synSize"><button type="button" data-s="n">Normale</button><button type="button" data-s="l">Grande</button><button type="button" data-s="f">Plein \u00e9cran</button></div>' +
+                    '<button type="button" class="syn-btn" id="synLocate">Ma position</button>' +
+                    '<button type="button" class="syn-btn" id="synMeasure">Mesurer</button>' +
+                    '<button type="button" class="syn-btn" id="synFit">Recentrer</button>' +
+                  '</div></div>' +
+                '<div class="syn-mapbox"><div id="synMap"></div><div id="synMapInfo" class="syn-mapinfo"></div><div id="synMapMsg" class="syn-mapmsg"></div></div>' +
+                '<p class="syn-attrib">Fonds de carte : OpenStreetMap, OpenStreetMap France (HOT), Esri (satellite), OpenTopoMap (relief) \u2014 choix en haut \u00e0 droite de la carte. Les tuiles et les itin\u00e9raires n\u00e9cessitent une connexion internet.</p>' +
               '</div>' +
               '<div class="syn-sidecol"><div class="syn-card" id="synLegend"></div><div class="syn-card" id="synLatest"></div></div>' +
             '</div>' +
@@ -3849,6 +4058,7 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
     fab.style.display = 'none';
     fab.addEventListener('click', synOpen);
     document.body.appendChild(fab);
+    synSetSize('n');
 
     const resetFilters = () => {
       SYN.period = 'all'; SYN.province = 'all'; SYN.ville = 'all'; SYN.etype = 'all'; SYN.kpi = 'all'; SYN.q = ''; SYN.fit = true;
@@ -3864,6 +4074,17 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
       if (t.closest('#synPrint')) { window.print(); return; }
       if (t.closest('#synReset')) { resetFilters(); synRender(); return; }
       if (t.closest('#synFit')) { SYN.fit = true; synRender(); return; }
+      if (t.closest('#synLocate')) { synLocate(); return; }
+      if (t.closest('#synMeasure')) { synMeasureToggle(); return; }
+      if (t.closest('#synInfoClear')) {
+        synClearRoute();
+        if (SYN.measureOn) synMeasureToggle(); else { synClearMeasure(); synHideInfo(); }
+        return;
+      }
+      const sz = t.closest('#synSize button');
+      if (sz) { synSetSize(sz.dataset.s); return; }
+      const det = t.closest('.syn-detail');
+      if (det) { const dr = SYN.cases[Number(det.dataset.i)]; if (dr) synOpenCase(dr); return; }
       if (t.closest('#synMapRetry')) { synMapError(false); synRender(); return; }
       const nav = t.closest('[data-nav]');
       if (nav) {
@@ -3882,7 +4103,7 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
       const row = t.closest('.syn-open');
       if (row) {
         const r = SYN.cases[Number(row.dataset.i)];
-        if (r) synOpenCase(r);
+        if (r) synFocusCase(r);
       }
     });
     const onSel = (id, key) => document.getElementById(id).addEventListener('change', (e) => {
@@ -3910,6 +4131,7 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape' || ov.style.display !== 'block') return;
       const modalOpen = dm && dm.classList.contains('show');
+      if (!modalOpen && SYN.size === 'f') { synSetSize('n'); return; }
       if (!modalOpen && !document.getElementById('editOverlay')) synClose();
     });
   }
