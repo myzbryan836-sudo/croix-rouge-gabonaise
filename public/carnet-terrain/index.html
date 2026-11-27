@@ -1606,6 +1606,13 @@ input:focus, select:focus, textarea:focus {
         </div>
       </div>
 
+      <div class="field">
+        <label>Position GPS du lieu (facultative)</label>
+        <div class="geo-row">
+          <button type="button" class="geo-btn" id="r_geoBtn">Capter la position de la famille</button>
+          <span class="geo-status" id="r_geoStatus">Non captur&eacute;e</span>
+        </div>
+      </div>
       <button type="submit" class="submit-btn" id="r_submitBtn">Save</button>
     </form>
 
@@ -3020,6 +3027,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       statutOccupant: document.getElementById('r_statutocc').value,
       feedback: document.getElementById('r_feedback').value,
       suggestions: document.getElementById('r_suggestions').value,
+      geo: retourGeo,
       photo: photoDataUrl,
       audio: audioDataUrl
     };
@@ -3104,7 +3112,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       '</div>' +
       '<div class="rd-stats">' + stat(r.tailleMenage, 'Personnes au m\u00e9nage') + stat(r.repasParJour, 'Repas par jour') + stat(r.enfantsSansActe, 'Sans acte de naissance') + '</div>' +
       card('Chef de famille', grid([item('Nom', r.chefFamille), item('\u00c2ge', has(r.age) ? r.age + ' ans' : ''), telItem, item('Nationalit\u00e9', r.nationalite), item('Profession', r.profession), item('Situation matrimoniale', r.matrimonial)])) +
-      card('Localisation', grid([item('Province', r.province), item('Ville', r.ville), item('Arrondissement', r.arrondissement), item('Quartier', r.quartier)])) +
+      card('Localisation', grid([item('Province', r.province), item('Ville', r.ville), item('Arrondissement', r.arrondissement), item('Quartier', r.quartier), (r.geo && r.geo.lat != null ? item('Position GPS', r.geo.lat + ', ' + r.geo.lng) : '')])) +
       card('Sinistre et logement', grid([item('Type de sinistre', r.sinistre), item('Type de maison', r.typeMaison), item("Statut d'occupation", r.statutOccupant)])) +
       card('Composition du m\u00e9nage', compo) +
       card('Scolarisation', chips(schooling)) +
@@ -3144,7 +3152,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     });
   }
 
-  const SYN = { data: [], cases: [], period: 'all', province: 'all', ville: 'all', etype: 'all', kpi: 'all', q: '', fit: true, renderId: 0, loadedAt: null, ready: false, map: null, cluster: null, markers: new Map(), size: 'n', measureOn: false, measurePts: [], measureLayer: null, routeLayer: null, routePick: null, routeOk: false, meLayer: null, hl: null, toastTimer: null };
+  const SYN = { data: [], cases: [], period: 'all', province: 'all', ville: 'all', etype: 'all', kpi: 'all', q: '', fit: true, renderId: 0, loadedAt: null, ready: false, map: null, cluster: null, markers: new Map(), size: 'n', measureOn: false, measurePts: [], measureLayer: null, routeLayer: null, routePick: null, routeOk: false, meLayer: null, hl: null, toastTimer: null, focusId: 0 };
 
   const SYN_ICON = {
     doc: 'M6 2h8l6 6v14H6V2zm7 1.5V9h5.5L13 3.5zM8.5 13h7v1.5h-7V13zm0 3.5h7V18h-7v-1.5z',
@@ -3287,7 +3295,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const sub = ret ? [r.sinistre, r.typeMaison].filter(Boolean).join(' \u00b7 ') : String(r.description || '').slice(0, 70);
     const lv = synLevelInfo(r);
     const st = synCaseState(r);
-    const gps = !ret && synCoords(r) ? '<span class="syn-gpsdot" title="Position GPS disponible">' + synIcon('pin') + '</span>' : '';
+    const gps = synCoords(r) ? '<span class="syn-gpsdot" title="Position GPS disponible">' + synIcon('pin') + '</span>' : '';
     return '<tr class="syn-row syn-open' + (synIsUrgent(r) ? ' urgent' : '') + '" data-i="' + idx + '">' +
       '<td class="c-ref">' + synEsc(r.ref || '') + '</td>' +
       '<td><span class="syn-tag ' + (ret ? 'ret' : 'sig') + '">' + (ret ? 'Fiche' : 'Signal.') + '</span></td>' +
@@ -3458,7 +3466,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
       leg('#16a34a', 'Cas r\u00e9solus', rows.filter(SYN_KPI.done).length) +
       leg('#f59e0b', 'En cours de traitement', rows.filter(SYN_KPI.prog).length) +
       leg('#e11d2e', 'Cas urgents', rows.filter(SYN_KPI.urgent).length) +
-      leg('#2563eb', 'Fiches famille (sans position GPS)', rows.filter(SYN_KPI.ret).length));
+      leg('#2563eb', 'Fiches famille (remont\u00e9es)', rows.filter(SYN_KPI.ret).length));
 
     const latest = rows.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 6);
     synSet('synLatest', '<h3>Derniers enregistrements</h3>' + (latest.length ? latest.map(r => synListItem(r, true)).join('') : '<div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div>'));
@@ -3471,7 +3479,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const noGps = rows.filter(r => !synCoords(r)).sort((a, b) => (synIsRetour(a) - synIsRetour(b)) || (new Date(b.timestamp) - new Date(a.timestamp)));
     const noGpsSig = noGps.filter(r => !synIsRetour(r)).length;
     synSet('synNoGps', noGps.length
-      ? '<div class="syn-card"><h3>' + synIcon('pin') + 'Sans position GPS (' + noGps.length + ')</h3><p class="syn-hint">' + noGpsSig + ' signalement(s) et ' + (noGps.length - noGpsSig) + ' fiche(s) famille. Ces cas ne sont pas plac\u00e9s sur la carte : aucune position n\u2019est invent\u00e9e.</p>' +
+      ? '<div class="syn-card"><h3>' + synIcon('pin') + 'Sans position GPS (' + noGps.length + ')</h3><p class="syn-hint">' + noGpsSig + ' signalement(s) et ' + (noGps.length - noGpsSig) + ' fiche(s) famille. Ces cas ne sont pas plac\u00e9s sur la carte : aucune position n\u2019est invent\u00e9e. Pour une fiche, utilisez Modifier pour ajouter sa position.</p>' +
         noGps.slice(0, 8).map(r => synListItem(r, false)).join('') + (noGps.length > 8 ? '<p class="syn-hint">Les autres cas sont visibles dans le tableau ci-dessous.</p>' : '') + '</div>'
       : '');
 
@@ -3491,7 +3499,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
         ? '<div class="syn-tablewrap"><table class="syn-table"><thead><tr><th class="c-ref">R\u00e9f.</th><th>Type</th><th>Cas</th><th>Urgence</th><th>Statut</th><th class="c-ppl">Pers.</th><th class="c-date">Date</th><th class="c-act"></th></tr></thead><tbody>' + tbody + '</tbody></table></div>'
         : '<div class="syn-empty">Aucun cas pour ces crit\u00e8res.</div>') + '</div>');
 
-    const geoCount = rows.filter(r => !synIsRetour(r) && synCoords(r)).length;
+    const geoCount = rows.filter(r => synCoords(r)).length;
     const cnt = document.getElementById('synMapCount');
     if (cnt) cnt.textContent = geoCount + ' cas plac\u00e9(s) sur la carte';
     synEnsureMap().then(() => { if (token === SYN.renderId) synUpdateMap(rows); }).catch(() => synMapError(true));
@@ -3571,10 +3579,12 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     const g = synGeo(r);
     const c = synCoords(r) || [0, 0];
     const st = synCaseState(r);
-    const desc = String(r.description || '').replace(/\s+/g, ' ').trim();
+    const ret = synIsRetour(r);
+    const typeLabel = ret ? 'Fiche famille \u00b7 ' + (r.sinistre || 'sinistre non pr\u00e9cis\u00e9') : synTitle(r);
+    const desc = ret ? '' : String(r.description || '').replace(/\s+/g, ' ').trim();
     const shortDesc = desc.length > 110 ? desc.slice(0, 107) + '...' : desc;
     return '<div class="syn-pop"><div class="syn-pop-head"><b>' + synEsc(r.ref || '') + '</b><span class="syn-chip ' + st.cls + '">' + synEsc(st.text) + '</span></div>' +
-      '<p><b>Type :</b> ' + synEsc(synTitle(r)) + '</p>' +
+      '<p><b>Type :</b> ' + synEsc(typeLabel) + '</p>' +
       '<p><b>Zone :</b> ' + synEsc(g.quartier + ', ' + g.ville + ' (' + g.province + ')') + '</p>' +
       '<p><b>Date :</b> ' + synEsc(synDate(r, true)) + '</p>' +
       (shortDesc ? '<p><b>Description :</b> ' + synEsc(shortDesc) + '</p>' : '') +
@@ -3590,7 +3600,6 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     SYN.markers = new Map();
     const pts = [];
     rows.forEach(r => {
-      if (synIsRetour(r)) return;
       const c = synCoords(r);
       if (!c) return;
       const idx = SYN.cases.push(r) - 1;
@@ -3649,7 +3658,7 @@ window.adminAuthReady = AdminAuth.init().then(() => {
   }
 
   function synFocusCase(r) {
-    const c = synIsRetour(r) ? null : synCoords(r);
+    const c = synCoords(r);
     if (!c) {
       synToast('Ce cas n\u2019a pas de position GPS : ouverture de sa fiche.');
       synOpenCase(r);
@@ -3657,12 +3666,17 @@ window.adminAuthReady = AdminAuth.init().then(() => {
     }
     const sec = document.getElementById('synSecMap');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const tok = ++SYN.focusId;
     synEnsureMap().then(() => {
       SYN.map.invalidateSize();
       const mk = SYN.markers.get(r.id);
-      const open = () => { if (mk) mk.openPopup(); };
-      if (mk && SYN.cluster.zoomToShowLayer) SYN.cluster.zoomToShowLayer(mk, open);
-      else { SYN.map.setView(c, 16); setTimeout(open, 250); }
+      const open = () => {
+        if (tok !== SYN.focusId) return;
+        try { if (mk && SYN.map.hasLayer(mk)) mk.openPopup(); } catch (e) { /* fiche indisponible */ }
+      };
+      if (mk && SYN.cluster.zoomToShowLayer) {
+        try { SYN.cluster.zoomToShowLayer(mk, open); } catch (e) { SYN.map.setView(c, 16); setTimeout(open, 250); }
+      } else { SYN.map.setView(c, 16); setTimeout(open, 250); }
       synHighlight(c);
     }).catch(() => synToast('La carte n\u2019est pas disponible pour le moment.'));
   }
@@ -4292,12 +4306,26 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
     const ov = document.createElement('div');
     ov.id = 'editOverlay';
     ov.innerHTML = '<div class="ed-panel"><div class="ed-head"><h3>Modifier ' + (ret ? 'la fiche famille' : 'le signalement') + ' ' + synEsc(rec.ref || '') + '</h3></div>' +
-      '<div class="ed-grid">' + fieldHtml + '</div>' +
+      '<div class="ed-grid">' + fieldHtml + '</div>' + recGeoHtml(rec) +
       '<p class="ed-note">Les photos, vid\u00e9os, enregistrements vocaux et r\u00e9partitions par \u00e2ge ne sont pas modifiables ici.</p>' +
       '<div class="ed-actions"><button type="button" class="rd-act" id="edCancel">Annuler</button><button type="button" class="rd-act primary" id="edSave">Enregistrer</button></div></div>';
     document.body.appendChild(ov);
     ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
     document.getElementById('edCancel').addEventListener('click', () => ov.remove());
+    const edGeoBtn = document.getElementById('ed_geo_btn');
+    if (edGeoBtn) edGeoBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) { alert('G\u00e9olocalisation indisponible sur cet appareil.'); return; }
+      edGeoBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.getElementById('ed_geo_lat').value = pos.coords.latitude.toFixed(5);
+          document.getElementById('ed_geo_lng').value = pos.coords.longitude.toFixed(5);
+          edGeoBtn.disabled = false;
+        },
+        () => { edGeoBtn.disabled = false; alert('Position non disponible. Saisissez les coordonn\u00e9es \u00e0 la main.'); },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    });
 
     document.getElementById('edSave').addEventListener('click', async () => {
       const btn = document.getElementById('edSave');
@@ -4317,6 +4345,22 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
         next[k] = v;
       });
       if (bad) { alert('Valeur invalide : ' + bad); return; }
+      const geoLat = document.getElementById('ed_geo_lat');
+      const geoLng = document.getElementById('ed_geo_lng');
+      if (geoLat && geoLng) {
+        const la = geoLat.value.trim().replace(',', '.');
+        const lo = geoLng.value.trim().replace(',', '.');
+        if (la === '' && lo === '') {
+          next.geo = null;
+        } else {
+          const ga = Number(la), gb = Number(lo);
+          if (la === '' || lo === '' || !isFinite(ga) || !isFinite(gb) || Math.abs(ga) > 90 || Math.abs(gb) > 180) {
+            alert('Position GPS invalide : latitude entre -90 et 90, longitude entre -180 et 180.');
+            return;
+          }
+          next.geo = { lat: ga.toFixed(5), lng: gb.toFixed(5) };
+        }
+      }
       btn.disabled = true;
       btn.textContent = 'Enregistrement...';
       const backup = Object.assign({}, rec);
@@ -4399,6 +4443,53 @@ table.syn-table{width:100%;border-collapse:separate;border-spacing:0;font-size:1
       else if (a === 'delete') deleteRecordFlow(rec, b);
     });
     body.insertBefore(bar, body.firstChild);
+  }
+
+  let retourGeo = null;
+  (function () {
+    const btn = document.getElementById('r_geoBtn');
+    const status = document.getElementById('r_geoStatus');
+    if (!btn || !status) return;
+    btn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        status.textContent = 'G\u00e9olocalisation indisponible sur cet appareil';
+        status.className = 'geo-status err';
+        return;
+      }
+      status.textContent = 'Capture en cours...';
+      status.className = 'geo-status';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          retourGeo = { lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) };
+          if (pos.coords.accuracy) retourGeo.acc = Math.round(pos.coords.accuracy);
+          status.textContent = 'Position captur\u00e9e (' + retourGeo.lat + ', ' + retourGeo.lng + ')' + (retourGeo.acc ? ' \u00b1 ' + retourGeo.acc + ' m' : '');
+          status.className = 'geo-status ok';
+        },
+        () => {
+          status.textContent = 'Position non disponible \u2014 r\u00e9essayez \u00e0 l\u2019ext\u00e9rieur ou \u00e0 la main plus tard';
+          status.className = 'geo-status err';
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    });
+    const again = document.getElementById('r_newReportBtn');
+    if (again) again.addEventListener('click', () => {
+      retourGeo = null;
+      status.textContent = 'Non captur\u00e9e';
+      status.className = 'geo-status';
+    });
+  })();
+
+  function recGeoHtml(rec) {
+    const g = rec && rec.geo ? rec.geo : null;
+    const lat = g && g.lat != null ? g.lat : '';
+    const lng = g && g.lng != null ? g.lng : '';
+    return '<div class="ed-f wide" style="margin-top:12px"><span>Position GPS (facultative)</span>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input type="text" id="ed_geo_lat" placeholder="Latitude (ex. 0.39123)" value="' + synEsc(lat) + '" style="flex:1 1 150px">' +
+      '<input type="text" id="ed_geo_lng" placeholder="Longitude (ex. 9.45678)" value="' + synEsc(lng) + '" style="flex:1 1 150px">' +
+      '<button type="button" class="rd-act" id="ed_geo_btn">Capter ma position</button></div>' +
+      '<small style="opacity:.65">Laissez vide pour retirer la position. Vous pouvez copier les coordonn\u00e9es depuis Google Maps (clic droit sur le lieu).</small></div>';
   }
 
   async function loadRetourHistory() {
